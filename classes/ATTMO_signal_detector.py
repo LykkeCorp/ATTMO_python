@@ -72,7 +72,7 @@ class ATTMO_signal_detector:
                 self.currentEventsSignalDetector[j] = tempEvents[j]
                 self.currentLevelsSignalDetector[j] = midprice
                 self.numberOfEventsInBlock[j] += 1
-                if tempEvents[j] > 0:
+                if abs(tempEvents[j]) > 0:
                     self.eventsOscillators[j] += tempEvents[j]
             self.direction[j] = -dcosSignalDetector[j].mode
             self.dcL[j] = dcosSignalDetector[j].dcL
@@ -139,7 +139,7 @@ class ATTMO_signal_detector:
         df_signalDetector = pd.DataFrame(columns=colNamesSigDetect)
         df_signalDetector.loc[0] = [tickReader.iteration, tickReader.timestamp, tickReader.midprice, iterationBlock, block] + df_signalDetector_core + [self.currentSignalLevel, self.trendStrength, self.trendForecast]
         df_signalDetector.to_parquet(f"{foldernameSignalDetector}{tickReader.timestamp}_signalDetector.parquet")
-        if (config.verbose): # & (iterationBlock%60==0):
+        if (config.verbose) & (iterationBlock%60==1):
             print(f"Time timeHorizon: {config.timeHorizons[t]}: trend strength = {self.trendStrength}, trend forecast = {self.trendForecast}")
         return self
     def reset(self, dcosSignalDetector, closePrice, interpolated_deltas):
