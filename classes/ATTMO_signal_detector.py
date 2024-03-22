@@ -86,7 +86,7 @@ class ATTMO_signal_detector:
             self.tlastDC[j] = dcosSignalDetector[j].DC.time
             self.ref[j] = dcosSignalDetector[j].reference.level
             self.nos[j] = dcosSignalDetector[j].nOS
-        self.totOscillatorBonus = np.round((self.eventsOscillators[0] + (self.eventsOscillators[1]*2) + (self.eventsOscillators[2]*3)) / 3)
+        self.totOscillatorBonus = np.round((self.eventsOscillators[0] + (self.eventsOscillators[1]*2) + (self.eventsOscillators[2]*3)) / 10)
         if (self.previousLevelsSignalDetector[0]<self.currentLevelsSignalDetector[1]<self.currentLevelsSignalDetector[0]) & (self.previousLevelsSignalDetector[1]<self.currentLevelsSignalDetector[2]<self.currentLevelsSignalDetector[1]) & (block>0) & (predictionIsOngoing==0):
             self.currentSignalLevel = 3
             self.trendStrength = self.startingValuesTrendStrength[5] + self.totOscillatorBonus
