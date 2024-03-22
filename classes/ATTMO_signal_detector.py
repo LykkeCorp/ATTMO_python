@@ -139,8 +139,8 @@ class ATTMO_signal_detector:
         df_signalDetector = pd.DataFrame(columns=colNamesSigDetect)
         df_signalDetector.loc[0] = [tickReader.iteration, tickReader.timestamp, tickReader.midprice, iterationBlock, block] + df_signalDetector_core + [self.currentSignalLevel, self.trendStrength, self.trendForecast]
         df_signalDetector.to_parquet(f"{foldernameSignalDetector}{tickReader.timestamp}_signalDetector.parquet")
-        if (config.verbose) & (iterationBlock%60==1):
-            print(f"Time timeHorizon: {config.timeHorizons[t]}: trend strength = {self.trendStrength}, trend forecast = {self.trendForecast}")
+        if (config.verbose) & (iterationBlock==1):
+            print(f"Time timeHorizon: {config.timeHorizons[t]}. Block = {block}. Trend strength = {self.trendStrength}. Trend forecast = {self.trendForecast}")
         return self
     def reset(self, dcosSignalDetector, closePrice, interpolated_deltas):
         self.numberOfEventsInBlock = list(np.zeros(3))
