@@ -91,7 +91,7 @@ class ATTMO_signal_detector:
         self.timestampPremiumPredictionEnd = ""
         self.timePremiumPredictionOn = 0
         self.timePremiumPredictionOff = 0
-    def run(self, config, t, tickReader, dcosSignalDetector, closePrice, windLevel, iterationBlock, block, columnNamesSignalDetector, foldernameSignalDetector, columnNamesPredictionGenerated, foldernamePredictionGenerated, columnNamesPredictionOutcome, foldernamePredictionOutcome):
+    def run(self, config, t, tickReader, dcosSignalDetector, closePrice, windLevel, iterationBlock, block, columnNamesSignalDetector, foldernameSignalDetector, columnNamesPredictionGenerated, foldernamePredictionsGenerated, columnNamesPredictionOutcome, foldernamePredictionsOutcome):
         midprice = closePrice.getMid()
         tempEvents = list(np.zeros(3))
         self.signalDetected = 0
