@@ -17,7 +17,6 @@ config = ATTMO_config()
 from classes.ATTMO_tick_reader import ATTMO_tick_reader
 from classes.ATTMO_interpolator import ATTMO_interpolator
 from classes.ATTMO_signal_detector import ATTMO_signal_detector
-from classes.ATTMO_prediction_generator import ATTMO_prediction_generator
 
 if (config.runOnNotebook) & (config.clearOutput):
     from IPython.display import clear_output

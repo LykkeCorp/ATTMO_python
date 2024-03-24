@@ -117,7 +117,7 @@ class ATTMO_signal_detector:
             self.tlastDC[j] = dcosSignalDetector[j].DC.time
             self.ref[j] = dcosSignalDetector[j].reference.level
             self.nos[j] = dcosSignalDetector[j].nOS
-            self.totOscillatorBonus = np.ceil((self.eventsOscillators[0] + (self.eventsOscillators[1]*2) + (self.eventsOscillators[2]*3)) / 10)
+            self.totOscillatorBonus = np.ceil((self.eventsOscillators[0] + (self.eventsOscillators[1]*2) + (self.eventsOscillators[2]*3)) / 3)
         if block > 0:
             if (self.previousPriceLevelsSignalDetector[0]<self.currentPriceLevelsSignalDetector[1]<self.currentPriceLevelsSignalDetector[0]) & (self.previousPriceLevelsSignalDetector[0]<self.currentPriceLevelsSignalDetector[2]<self.currentPriceLevelsSignalDetector[0]) & (block>0) & (self.premiumPredictionIsOngoing==0):
                 if self.ongoingSignalLevel != 3:
@@ -133,7 +133,7 @@ class ATTMO_signal_detector:
                 self.ongoingSignalLevel = -3
                 self.trendStrength = self.startingValuesTrendStrength[0]
                 self.attmoForecast = self.attmoForecastLabels[0]
-            if abs(self.ongoingSignalLevel) < 3:
+            if abs(self.ongoingSignalLevel) == 1:
                 if (self.previousPriceLevelsSignalDetector[0]<self.currentPriceLevelsSignalDetector[2]<self.currentPriceLevelsSignalDetector[0]) & (block>0):
                     if self.ongoingSignalLevel != 2:
                         self.signalDetected = 2
@@ -148,7 +148,7 @@ class ATTMO_signal_detector:
                     self.ongoingSignalLevel = -2
                     self.trendStrength = self.startingValuesTrendStrength[1]
                     self.attmoForecast = self.attmoForecastLabels[1]
-            if abs(self.ongoingSignalLevel) < 2:
+            if abs(self.ongoingSignalLevel) == 0:
                 if tempEvents[2] == 1:
                     if self.ongoingSignalLevel != 1:
                         self.signalDetected = 1
