@@ -14,10 +14,12 @@ def create_folders(foldername, timeHorizons):
         os.makedirs(foldername_time_horizon)
         foldername_interpolation = foldername_time_horizon+"interpolation/"
         foldername_signal_detector = foldername_time_horizon+"signal_detector/"
-        foldername_predictions = foldername_time_horizon+"predictions/"
+        foldername_predictions_generated = foldername_time_horizon+"predictions_generated/"
+        foldername_predictions_outcome = foldername_time_horizon+"predictions_outcome/"
         os.makedirs(foldername_interpolation)
         os.makedirs(foldername_signal_detector)
-        os.makedirs(foldername_predictions)
+        os.makedirs(foldername_predictions_generated)
+        os.makedirs(foldername_predictions_outcome)
 
 
 def generate_dataframes_column_names():
@@ -25,22 +27,27 @@ def generate_dataframes_column_names():
     columnNamesTickReader = ["iteration", "timestamp", "midprice"]
 
     # interpolator
-    columnNamesInterpolator = ["iteration", "timestamp", "midprice", "iterationBlock", "block", "delta_0", "delta_1", "delta_2", "param_a", "param_b", "r_squared"]
+    columnNamesInterpolator = ["iteration", "timestamp", "midprice", "iterationBlock", "block", "delta0", "delta1", "delta2", "paramA", "paramB", "rSquared", "windLevel", "windLabel"]
 
     # signalDetector
     columnNamesSignalDetector = ["iteration", "timestamp", "midprice", "iterationBlock", "block"]
-    colNames_sd = [(f"threshold_{j}", f"currentEvent_{j}", f"nrOfEventsInBlock_{j}") for j in range(3)]
+    colNames_sd = [(f"threshold{j}", f"currentEvent{j}", f"nrOfEventsInBlock{j}") for j in range(3)]
     colNames_SD = [item for t in colNames_sd for item in t]
     columnNamesSignalDetector.extend(colNames_SD)
-    columnNamesSignalDetector.extend(['currentSignalLevel', 'trendStrength', 'trendForecast'])
+    columnNamesSignalDetector.extend(['signalDetected', 'ongoingSignalLevel', 'trendStrength', 'trendForecast', 'attmoForecast'])
 
     # predictor
-    columnNamesPrediction = ["iteration", "timestamp", "midprice", "iterationBlock", "block",
+    columnNamesPredictionGenerated = ["iteration", "timestamp", "midprice", "iterationBlock", "block",
+            #'iterationPredictionStart', 'timestampPredictionStart', 'midpricePredictionStart',
+            #'iterationPredictionEnd', 'midpricePredictionEnd',  'timestampPredictionEnd',
+            'predictionPriceChangePt', 'predictionDirection', 'attmoForecast', 'target', 'stopLoss',
+            'predictionDurationTicks', 'predictionOutcome', 'nrTargetReached', 'nrStopLossReached']
+
+    columnNamesPredictionOutcome = ["iteration", "timestamp", "midprice", "iterationBlock", "block",
             'iterationPredictionStart', 'timestampPredictionStart', 'midpricePredictionStart',
-            'iterationPredictionEnd', 'midpricePredictionEnd',  'timestampPredictionEnd',
-            'predictionPriceChangePt', 'predictionDirection', 'target', 'stopLoss',
-            'attmoForecast', 'predictionDurationTicks', 'predictionOutcome', 'nrTargetReached', 'nrStopLossReached']
-    return columnNamesTickReader, columnNamesInterpolator, columnNamesSignalDetector, columnNamesPrediction
+            'attmoForecast', 'target', 'stopLoss',
+            'predictionDurationTicks', 'predictionOutcome', 'nrTargetReached', 'nrStopLossReached']
+    return columnNamesTickReader, columnNamesInterpolator, columnNamesSignalDetector, columnNamesPredictionGenerated, columnNamesPredictionOutcome
 
 
 def copy_configuration_file(foldername, config_file_str, now, symbol_1, symbol_2):

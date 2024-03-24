@@ -6,9 +6,9 @@ symbol_2 = 'FDUSD'
 
 
 # attmo settings
-attmoForecastLabels = ['Stormy', 'Rainy', 'Cloudy', 'Sunny with some clouds', 'Sunny', 'Tropical']
+attmoForecastLabels = ['Stormy', 'Rainy', 'Cloudy', 'Mostly sunny', 'Sunny', 'Tropical']
 timeHorizons = ['shortterm', '1h', '4h', '1d', '3d', '1w']
-startingValuesTrendStrength = [9, 20, 42, 59, 75, 92]                                                                  # old ATTMO
+startingValuesTrendStrength = [9, 20, 42, 59, 75, 92]                                                                        # old ATTMO
 trendForecastLabels = ['bearish_very_extended', 'bearish_extended', 'bearish_very', 'bearish', 'bearish_neutral',            # old ATTMO
                   'bullish_neutral', 'bullish', 'bullish_very', 'bullish_extended', 'bullish_very_extended']
 

@@ -38,7 +38,7 @@ functions.create_folders(foldername, config.timeHorizons)
 
 
 ####### set dataframes column names #######
-columnNamesTickReader, columnNamesInterpolator, columnNamesSignalDetector, columnNamesPredictor = functions.generate_dataframes_column_names()
+columnNamesTickReader, columnNamesInterpolator, columnNamesSignalDetector, columnNamesPredictionGenerated, columnNamesPredictionOutcome = functions.generate_dataframes_column_names()
 
 
 ####### save copy of configuration file #######
@@ -54,7 +54,6 @@ interpolators = [[] for _ in range(len(config.desiredEventFrequenciesList))]
 dcosInterpolation = [[] for _ in range(len(config.desiredEventFrequenciesList))]
 signalDetectors = [[] for _ in range(len(config.desiredEventFrequenciesList))]
 dcosSignalDetection = [[] for _ in range(len(config.desiredEventFrequenciesList))]
-predictionGenerators = [[] for _ in range(len(config.desiredEventFrequenciesList))]
 
 
 for t in range(len(config.desiredEventFrequenciesList)):
@@ -70,10 +69,6 @@ for t in range(len(config.desiredEventFrequenciesList)):
     dcosSignalDetection[t] = [[] for _ in range(3)]
     for j in range(3):
         dcosSignalDetection[t][j] = DcOS_TrendGenerator.DcOS(interpolators[t].interpolatedThresholds[j], -1)
-
-
-    ####### initialise predictors #######
-    predictionGenerators[t] = ATTMO_prediction_generator(config, t)
 
 
 def on_open(ws):
@@ -104,7 +99,8 @@ def on_message(ws, message):
         foldernameTimeHorizon = foldername+config.timeHorizons[t]+"/"
         foldernameInterpolation = foldernameTimeHorizon+"interpolation/"
         foldernameSignalDetector = foldernameTimeHorizon+"signal_detector/"
-        foldernamePredictions = foldernameTimeHorizon+"predictions/"
+        foldernamePredictionsGenerated = foldernameTimeHorizon+"predictions_generated/"
+        foldernamePredictionsOutcome = foldernameTimeHorizon+"predictions_outcome/"
 
 
         ####### 2. run interpolation #######
@@ -112,15 +108,11 @@ def on_message(ws, message):
 
 
         ####### 3. run signal detection #######
-        signalDetectors[t] = signalDetectors[t].run(config, t, tickReader, dcosSignalDetection[t], closePrice, predictionGenerators[t].predictionIsOngoing, interpolators[t].iterationBlock, interpolators[t].block, columnNamesSignalDetector, foldernameSignalDetector)
+        signalDetectors[t] = signalDetectors[t].run(config, t, tickReader, dcosSignalDetection[t], closePrice, interpolators[t].windLevel, interpolators[t].iterationBlock, interpolators[t].block, columnNamesSignalDetector, foldernameSignalDetector, columnNamesPredictionGenerated, foldernamePredictionsGenerated, columnNamesPredictionOutcome, foldernamePredictionsOutcome)
 
 
-        ####### 4. generate prediction #######
-        predictionGenerators[t] = predictionGenerators[t].run(tickReader, interpolators[t].iterationBlock, interpolators[t].block, interpolators[t].powerLawParameters, signalDetectors[t].thresholdsForSignalDetector[1], signalDetectors[t].currentSignalLevel, config, columnNamesPredictor, foldername, foldernamePredictions)
-
-
-        ####### 5. compute volatility #######
-        if interpolators[t].iterationBlock == config.blockLengths[t]:
+        ####### 4. compute volatility #######
+        if interpolators[t].iterationBlock == interpolators[t].blockLength:
             if config.clearOutput:
                 if config.runOnNotebook:
                     clear_output(wait=False)
@@ -129,7 +121,7 @@ def on_message(ws, message):
                         os.system("cls")
                     else:
                         os.system("clear")
-            interpolators[t] = interpolators[t].fit_power_law(config, tickReader, columnNamesInterpolator, foldernameInterpolation)
+            interpolators[t] = interpolators[t].interpolate(config, t, tickReader, signalDetectors[t].target, signalDetectors[t].stopLoss, columnNamesInterpolator, foldernameInterpolation)
             signalDetectors[t], dcosSignalDetection[t] = signalDetectors[t].reset(dcosSignalDetection[t], closePrice, interpolators[t].interpolatedThresholds)
 
 

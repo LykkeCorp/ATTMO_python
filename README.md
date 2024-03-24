@@ -14,3 +14,21 @@ If the confidence level is 3 or -3, the signal is passed to the corresponding pr
 
 Each **predictor object** then uses the scaling-law parameters to place a target and a stop-loss that are consistent with current volatility (i.e., further apart if volatility is high and vice-versa). It also spits out the weather forecast (e.g., 'sunny', 'cloudy').
 Accuracy of the predictions: shortterm (~25 min) ~ 61%, 1h ~ 58%, 4h ~ 55%. More data are needed to assess longer time horizons.
+
+
+## Information displayed:
+Wind forecast  (interpolator; updates at end of block):
+- a/b 0
+- a/b 1
+- a/b 2
+
+Weather forecast  (signalDetector; updates on tick):
+- L direction at DC
+- silver crossing (S/L)
+- golden crossing (S/M/L)    -->     premium prediction (entry price, target, stop-loss)
+
+
+## Further information produced (for backwards compatibility):
+Trend strength = wind forecast starting value + oscillator (signalDetector; updates on tick)
+
+Trend forecast = Trend strength category (signalDetector; updates on tick)

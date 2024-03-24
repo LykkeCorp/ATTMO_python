@@ -1,0 +1,3 @@
+notes:
+- 'period' now is called 'timeHorizon'
+- one period was wrongly labelled as 'h6' instead of 'h4'
