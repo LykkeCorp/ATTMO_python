@@ -16,11 +16,10 @@ attmoForecastLabels = ['Stormy', 'Rainy', 'Cloudy', 'Mostly sunny', 'Sunny', 'Tr
 log_spaced_values = np.logspace(1, -3, 30)
 thresholdsForInterpolation = list(np.round(np.flip(log_spaced_values)/100,7))
 desiredEventFrequenciesList = [[0.05, 0.02, 0.005],
-                               [0.0125, 0.005, 0.0125],
-                               [0.0025, 0.0075, 0.01],
-                               [0.0075, 0.01, 0.0125],
-                               [0.01, 0.0175, 0.02],
-                               [0.2, 0.0225, 0.025]]
+                               [0.0025, 0.00125, 0.001],
+                               [0.00075, 0.0005, 0.00025],
+                               [0.0005, 0.0002, 0.00005],
+                               [0.00025, 0.000125, 0.0001]]
 desiredNumberOfLargestEventsPerBlock = 2.5
 blockLengths = []
 for i in range(len(desiredEventFrequenciesList)):
@@ -39,5 +38,5 @@ savePredictionData = 1
 
 
 # configuration settings
-runOnLocal = 0
+runOnLocal = 1
 verbose = 1
