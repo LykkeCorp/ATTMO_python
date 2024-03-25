@@ -18,9 +18,6 @@ from classes.ATTMO_tick_reader import ATTMO_tick_reader
 from classes.ATTMO_interpolator import ATTMO_interpolator
 from classes.ATTMO_signal_detector import ATTMO_signal_detector
 
-if (config.runOnNotebook) & (config.clearOutput):
-    from IPython.display import clear_output
-
 
 ####### declare symbol #######
 assetString = f"{config.symbol_1.lower()}{config.symbol_2.lower()}@kline_1s"
@@ -82,9 +79,10 @@ def on_close(ws, status, message):
 def on_message(ws, message):
     global closePrice, midprice, price_1, df
     global client, config, assetString
-    global tickReader, interpolators, signalDetectors, predictionGenerators, dcosInterpolation, dcosSignalDetection
+    global tickReader, interpolators, signalDetectors, predictionGenerators
+    global dcosInterpolation, dcosSignalDetection
     global foldername, foldernameTicks
-    global columnNamesTickReader, columnNamesInterpolator, columnNamesSignalDetector, columnNamesPredictor
+    global columnNamesTickReader, columnNamesInterpolator, columnNamesSignalDetector, columnNamesPredictionGenerated, columnNamesPredictionOutcome
 
 
     ####### 1. Read tick & update counters #######
@@ -112,14 +110,6 @@ def on_message(ws, message):
 
         ####### 4. compute volatility #######
         if interpolators[t].iterationBlock == interpolators[t].blockLength:
-            if config.clearOutput:
-                if config.runOnNotebook:
-                    clear_output(wait=False)
-                else:
-                    if config.runOnLocal:
-                        os.system("cls")
-                    else:
-                        os.system("clear")
             interpolators[t] = interpolators[t].interpolate(config, t, tickReader, signalDetectors[t].target, signalDetectors[t].stopLoss, columnNamesInterpolator, foldernameInterpolation)
             signalDetectors[t], dcosSignalDetection[t] = signalDetectors[t].reset(dcosSignalDetection[t], closePrice, interpolators[t].interpolatedThresholds)
 

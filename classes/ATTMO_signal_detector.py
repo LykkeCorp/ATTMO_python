@@ -122,14 +122,14 @@ class ATTMO_signal_detector:
             if (self.previousPriceLevelsSignalDetector[0]<self.currentPriceLevelsSignalDetector[1]<self.currentPriceLevelsSignalDetector[0]) & (self.previousPriceLevelsSignalDetector[0]<self.currentPriceLevelsSignalDetector[2]<self.currentPriceLevelsSignalDetector[0]) & (block>0) & (self.premiumPredictionIsOngoing==0):
                 if self.ongoingSignalLevel != 3:
                     self.signalDetected = 3
-                    self.totOscillatorBonus = 0
+                    self.totOscillatorBonus = np.ceil(self.totOscillatorBonus / 3)
                 self.ongoingSignalLevel = 3
                 self.trendStrength = self.startingValuesTrendStrength[5]
                 self.attmoForecast = self.attmoForecastLabels[5]
             elif (self.previousPriceLevelsSignalDetector[0]>self.currentPriceLevelsSignalDetector[1]>self.currentPriceLevelsSignalDetector[0]) & (self.previousPriceLevelsSignalDetector[0]>self.currentPriceLevelsSignalDetector[2]>self.currentPriceLevelsSignalDetector[0]) & (block>0) & (self.premiumPredictionIsOngoing==0):
                 if self.ongoingSignalLevel != -3:
                     self.signalDetected = -3
-                    self.totOscillatorBonus = 0
+                    self.totOscillatorBonus = np.ceil(self.totOscillatorBonus / 3)
                 self.ongoingSignalLevel = -3
                 self.trendStrength = self.startingValuesTrendStrength[0]
                 self.attmoForecast = self.attmoForecastLabels[0]
@@ -137,14 +137,14 @@ class ATTMO_signal_detector:
                 if (self.previousPriceLevelsSignalDetector[0]<self.currentPriceLevelsSignalDetector[2]<self.currentPriceLevelsSignalDetector[0]) & (block>0):
                     if self.ongoingSignalLevel != 2:
                         self.signalDetected = 2
-                        self.totOscillatorBonus = 0
+                        self.totOscillatorBonus = np.ceil(self.totOscillatorBonus / 2)
                     self.ongoingSignalLevel = 2
                     self.trendStrength = self.startingValuesTrendStrength[4]
                     self.attmoForecast = self.attmoForecastLabels[4]
                 elif (self.previousPriceLevelsSignalDetector[0]>self.currentPriceLevelsSignalDetector[2]>self.currentPriceLevelsSignalDetector[0]) & (block>0):
                     if self.ongoingSignalLevel != -2:
                         self.signalDetected = -2
-                        self.totOscillatorBonus = 0
+                        self.totOscillatorBonus = np.ceil(self.totOscillatorBonus / 2)
                     self.ongoingSignalLevel = -2
                     self.trendStrength = self.startingValuesTrendStrength[1]
                     self.attmoForecast = self.attmoForecastLabels[1]
@@ -152,14 +152,12 @@ class ATTMO_signal_detector:
                 if tempEvents[2] == 1:
                     if self.ongoingSignalLevel != 1:
                         self.signalDetected = 1
-                        #self.totOscillatorBonus = 0
                     self.ongoingSignalLevel = 1
                     self.trendStrength = self.startingValuesTrendStrength[3]
                     self.attmoForecast = self.attmoForecastLabels[3]
                 elif tempEvents[2] == -1:
                     if self.ongoingSignalLevel != -1:
                         self.signalDetected = -1
-                        #self.totOscillatorBonus = 0
                     self.trendStrength = self.startingValuesTrendStrength[2]
                     self.attmoForecast = self.attmoForecastLabels[2]
             if self.ongoingSignalLevel == 0:
@@ -189,11 +187,12 @@ class ATTMO_signal_detector:
             self.trendForecast = self.trendForecastLabels[8]
         elif 91 <= self.trendStrength < 101:
             self.trendForecast = self.trendForecastLabels[9]
-        signalDetector_core = [(self.thresholdsForSignalDetector[i], self.currentEventsSignalDetector[i], self.numberOfEventsInBlock[i]) for i in range(len(dcosSignalDetector))]
-        df_signalDetector_core = [item for t in signalDetector_core for item in t]
-        df_signalDetector = pd.DataFrame(columns=columnNamesSignalDetector)
-        df_signalDetector.loc[0] = [tickReader.iteration, tickReader.timestamp, tickReader.midprice, iterationBlock, block] + df_signalDetector_core + [self.signalDetected, self.ongoingSignalLevel, self.trendStrength, self.trendForecast, self.attmoForecast]
-        df_signalDetector.to_parquet(f"{foldernameSignalDetector}{tickReader.timestamp}_signalDetector.parquet")
+        if config.saveSignalDetectionData:
+            signalDetector_core = [(self.thresholdsForSignalDetector[i], self.currentEventsSignalDetector[i], self.numberOfEventsInBlock[i]) for i in range(len(dcosSignalDetector))]
+            df_signalDetector_core = [item for t in signalDetector_core for item in t]
+            df_signalDetector = pd.DataFrame(columns=columnNamesSignalDetector)
+            df_signalDetector.loc[0] = [tickReader.iteration, tickReader.timestamp, tickReader.midprice, iterationBlock, block] + df_signalDetector_core + [self.signalDetected, self.ongoingSignalLevel, self.trendStrength, self.trendForecast, self.attmoForecast]
+            df_signalDetector.to_parquet(f"{foldernameSignalDetector}{tickReader.timestamp}_signalDetector.parquet")
         if (config.verbose) & (abs(self.signalDetected)>0) & (block>0):
             print("")
             print(f"---------------------------------------------------------")
@@ -220,11 +219,12 @@ class ATTMO_signal_detector:
                     print(f"---------------------------------------------------------")
                     print(f"Time timeHorizon: {self.timeHorizon}, {tickReader.timestamp}: Premium prediction generated!")
                     print(f"Entry price = {tickReader.midprice}, Target = {np.round(self.target,3)}, StopLoss = {np.round(self.stopLoss,3)} {tickReader.symbol_2}")
-                dfPredGen = pd.DataFrame(columns=columnNamesPredictionGenerated)
-                dfPredGen.loc[0] = [tickReader.iteration, tickReader.timestamp, tickReader.midprice,  iterationBlock, block,
-                    self.premiumPredictionDelta*100, self.premiumPredictionIsOngoing, self.attmoForecast, self.target, self.stopLoss,
-                    self.premiumPredictionDurationTicks, self.premiumPredictionOutcome, self.nTargetReached, self.nStopLossReached]
-                dfPredGen.to_parquet(f"{foldernamePredictionsGenerated}{tickReader.timestamp}_predictionGenerated.parquet")
+                if config.savePredictionData:
+                    dfPredGen = pd.DataFrame(columns=columnNamesPredictionGenerated)
+                    dfPredGen.loc[0] = [tickReader.iteration, tickReader.timestamp, tickReader.midprice,  iterationBlock, block,
+                        self.premiumPredictionDelta*100, self.premiumPredictionIsOngoing, self.attmoForecast, self.target, self.stopLoss,
+                        self.premiumPredictionDurationTicks, self.premiumPredictionOutcome, self.nTargetReached, self.nStopLossReached]
+                    dfPredGen.to_parquet(f"{foldernamePredictionsGenerated}{tickReader.timestamp}_predictionGenerated.parquet")
         if self.premiumPredictionIsOngoing == 1:
             if tickReader.midprice>self.target:
                 self.nTargetReached += 1
@@ -254,12 +254,13 @@ class ATTMO_signal_detector:
                     print(f"Target = {np.round(self.target,3)}, stop-loss = {np.round(self.stopLoss,3)}, midprice = {np.round(tickReader.midprice,3)}: STOP-LOSS REACHED!")
                 print(f"Duration = {self.premiumPredictionDurationTicks} s.")
                 print(f"Number of targets reached = {self.nTargetReached}; Number of stop-losses reached = {self.nStopLossReached}.")
-            dfPredOut = pd.DataFrame(columns=columnNamesPredictionOutcome)
-            dfPredOut.loc[0] = [tickReader.iteration, tickReader.timestamp, tickReader.midprice,  iterationBlock, block,
-                self.iterationPremiumPredictionStart, self.midpricePremiumPredictionStart, self.timestampPremiumPredictionStart,
-                self.attmoForecast, self.target, self.stopLoss,
-                self.premiumPredictionDurationTicks, self.premiumPredictionOutcome, self.nTargetReached, self.nStopLossReached]
-            dfPredOut.to_parquet(f"{foldernamePredictionsOutcome}{tickReader.timestamp}_predictionOutcome.parquet")
+            if config.savePredictionData:
+                dfPredOut = pd.DataFrame(columns=columnNamesPredictionOutcome)
+                dfPredOut.loc[0] = [tickReader.iteration, tickReader.timestamp, tickReader.midprice,  iterationBlock, block,
+                    self.iterationPremiumPredictionStart, self.midpricePremiumPredictionStart, self.timestampPremiumPredictionStart,
+                    self.attmoForecast, self.target, self.stopLoss,
+                    self.premiumPredictionDurationTicks, self.premiumPredictionOutcome, self.nTargetReached, self.nStopLossReached]
+                dfPredOut.to_parquet(f"{foldernamePredictionsOutcome}{tickReader.timestamp}_predictionOutcome.parquet")
             self.ongoingSignalLevel = 0
             self.attmoForecast = 'Foggy'
             self.premiumPredictionOutcome = 0
