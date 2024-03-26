@@ -16,10 +16,12 @@ def create_folders(foldername, timeHorizons):
         foldername_signal_detector = foldername_time_horizon+"signal_detector/"
         foldername_predictions_generated = foldername_time_horizon+"predictions_generated/"
         foldername_predictions_outcome = foldername_time_horizon+"predictions_outcome/"
+        foldername_images = foldername_time_horizon+"images/"
         os.makedirs(foldername_interpolation)
         os.makedirs(foldername_signal_detector)
         os.makedirs(foldername_predictions_generated)
         os.makedirs(foldername_predictions_outcome)
+        os.makedirs(foldername_images)
 
 
 def generate_dataframes_column_names():
@@ -38,13 +40,11 @@ def generate_dataframes_column_names():
 
     # predictor
     columnNamesPredictionGenerated = ["iteration", "timestamp", "midprice", "iterationBlock", "block",
-            #'iterationPredictionStart', 'timestampPredictionStart', 'midpricePredictionStart',
-            #'iterationPredictionEnd', 'midpricePredictionEnd',  'timestampPredictionEnd',
             'predictionPriceChangePt', 'predictionDirection', 'attmoForecast', 'target', 'stopLoss',
             'predictionDurationTicks', 'predictionOutcome', 'nrTargetReached', 'nrStopLossReached']
 
     columnNamesPredictionOutcome = ["iteration", "timestamp", "midprice", "iterationBlock", "block",
-            'iterationPredictionStart', 'timestampPredictionStart', 'midpricePredictionStart',
+            'iterationPredictionStart', 'midpricePredictionStart', 'timestampPredictionStart',
             'attmoForecast', 'target', 'stopLoss',
             'predictionDurationTicks', 'predictionOutcome', 'nrTargetReached', 'nrStopLossReached']
     return columnNamesTickReader, columnNamesInterpolator, columnNamesSignalDetector, columnNamesPredictionGenerated, columnNamesPredictionOutcome
