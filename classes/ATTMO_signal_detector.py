@@ -1,5 +1,7 @@
 import numpy as np
 import pandas as pd
+from sklearn.linear_model import LinearRegression
+
 from DcOS_TrendGenerator import *
 
 
@@ -28,7 +30,12 @@ class ATTMO_signal_detector:
         'premiumPredictionDelta', 'target', 'stopLoss', 'distanceToTarget', 'distanceToStopLoss',
         'premiumPredictionDurationTicks', 'premiumPredictionOutcome', 'premiumPredictionIsOngoing',
         'nTargetReached', 'nStopLossReached', 'timestampPremiumPredictionStart', 'timestampPremiumPredictionEnd',
-        'timePremiumPredictionOn', 'timePremiumPredictionOff']
+        'timePremiumPredictionOn', 'timePremiumPredictionOff',
+        'overShootDataframe',
+        'supportLineDataFrame', 'supportLineEstimationIteration', 'supportLineIntercept', 'supportLineSlope', 'supportLineRSquared',
+        'supportLineEstimationPoints', 'supportLineBrakeout', 'supportLineConfirmation',
+        'resistenceLineDataFrame', 'resistenceLineEstimationIteration', 'resistenceLineIntercept', 'resistenceLineSlope', 'resistenceLineRSquared',
+        'resistenceLineEstimationPoints', 'resistenceLineBrakeout', 'resistenceLineConfirmation']
     def __init__(self, config, t):
         self.timeHorizon = config.timeHorizons[t]
         self.thresholdsForSignalDetector = list(np.zeros(3))
@@ -91,6 +98,265 @@ class ATTMO_signal_detector:
         self.timestampPremiumPredictionEnd = ""
         self.timePremiumPredictionOn = 0
         self.timePremiumPredictionOff = 0
+        self.overShootDataframe = pd.DataFrame(columns = ['iteration', 'timestamp', 'midprice', 'direction'])
+        self.supportLineDataFrame = pd.DataFrame(columns = ['iteration', 'timestamp', 'midprice', 'direction'])
+        self.supportLineEstimationIteration = 0
+        self.supportLineIntercept = 0
+        self.supportLineSlope = 0
+        self.supportLineRSquared = 0
+        self.supportLineEstimationPoints = 0
+        self.supportLineBrakeout = 0
+        self.supportLineConfirmation = 0
+        self.resistenceLineDataFrame = pd.DataFrame(columns = ['iteration', 'timestamp', 'midprice', 'direction'])
+        self.resistenceLineEstimationIteration = 0
+        self.resistenceLineIntercept = 0
+        self.resistenceLineSlope = 0
+        self.resistenceLineRSquared = 0
+        self.resistenceLineEstimationPoints = 0
+        self.resistenceLineBrakeout = 0
+        self.resistenceLineConfirmation = 0
+    def update(self, tickReader, dcosSignalDetector, closePrice):
+        midprice = closePrice.getMid()
+        tempEvents = list(np.zeros(3))
+        self.signalDetected = 0
+        for j in range(3):
+            tempEvents[j] = dcosSignalDetector[j].run(closePrice)
+            if abs(tempEvents[j]) > 0:
+                self.previousEventsSignalDetector[j] = self.currentEventsSignalDetector[j]
+                self.previousPriceLevelsSignalDetector[j] = self.currentPriceLevelsSignalDetector[j]
+                self.currentEventsSignalDetector[j] = tempEvents[j]
+                self.currentPriceLevelsSignalDetector[j] = midprice
+                self.numberOfEventsInBlock[j] += 1
+                self.eventsOscillators[j] += tempEvents[j]
+            self.direction[j] = -dcosSignalDetector[j].mode
+            self.dcL[j] = dcosSignalDetector[j].dcL
+            self.osL[j] = dcosSignalDetector[j].osL
+            self.totalMove[j] = dcosSignalDetector[j].totalMove
+            self.extreme[j] = dcosSignalDetector[j].extreme.level
+            self.prev_extremes[j] = dcosSignalDetector[j].prevExtreme.level
+            self.lastDC[j] = dcosSignalDetector[j].DC.level
+            self.textreme[j] = dcosSignalDetector[j].extreme.time
+            self.tprev_extremes[j] = dcosSignalDetector[j].prevExtreme.time
+            self.tlastDC[j] = dcosSignalDetector[j].DC.time
+            self.ref[j] = dcosSignalDetector[j].reference.level
+            self.nos[j] = dcosSignalDetector[j].nOS
+            self.totOscillatorBonus = np.ceil((self.eventsOscillators[0] + (self.eventsOscillators[1]*2) + (self.eventsOscillators[2]*3)) / 3)
+        if abs(tempEvents[2]) == 2:
+            self.overShootDataframe.loc[len(self.overShootDataframe)] = [tickReader.iteration, tickReader.timestamp, tickReader.midprice, tempEvents[2]]
+            if len(self.overShootDataframe) == 11:
+                self.overShootDataframe = self.overShootDataframe.drop([0])
+                self.overShootDataframe.reset_index(inplace=True)
+                self.overShootDataframe.drop('index', inplace=True, axis=1)
+            print(f"overShootDataframe:")
+            print(f"{self.overShootDataframe}")
+        return self
+    def detectDerivativeTrendLineSignal(self, iteration):
+        if len(self.overShootDataframe) == 10:
+            df = self.overShootDataframe.copy()
+            #df.set_index('iteration', inplace=True)
+            #df.drop('index', inplace=True, axis=1)
+            if df.direction.iloc[len(df)-1] < 0:
+                df = df[df.direction<0]
+            elif df.direction.iloc[len(df)-1] > 0:
+                df = df[df.direction>0]
+            if len(df) > 2:
+                for k in range(3,len(df)):
+                    subset_df = df.iloc[len(df)-k:len(df)]
+                    subset = subset_df.midprice
+                    X = np.arange(len(subset)).reshape(-1, 1)
+                    y = subset.values.reshape(-1, 1)
+                    model = LinearRegression()
+                    model.fit(X, y)
+                    y_pred = model.predict(X)
+                    r_squared = compute_r_squared(y, y_pred)
+                    print(f"r-squared = {r_squared}")
+                    if (df.direction.iloc[len(df)-1]<0) & (r_squared>self.supportLineRSquared) & (r_squared>.9):
+                        print("(r_squared>self.supportLineRSquared) & (r_squared>.9):")
+                        self.supportLineDataFrame = subset_df
+                        print(f"k = {k}, self.supportLineDataFrame:")
+                        print(f"{self.supportLineDataFrame}")
+                        self.supportLineIntercept = model.intercept_[0]
+                        self.supportLineSlope = model.coef_[0][0]
+                        self.supportLineRSquared = r_squared
+                        self.supportLineEstimationPoints = k
+                        self.supportLineEstimationIteration = iteration
+                        print(f'Support line found! Best R-squared positive overshoots: {self.supportLineRSquared} (associated with k={self.supportEstimationPoints}); a = {self.supportLineIntercept}, b = {self.supportLineSlope}')
+                    elif (df.direction.iloc[len(df)-1]>0) & (r_squared>self.resistenceLineRSquared) & (r_squared>.9):
+                        print("(r_squared>self.resistenceLineRSquared) & (r_squared>.9):")
+                        self.resistenceLineDataFrame = subset_df
+                        print(f"k = {k}, self.resistenceLineDataFrame:")
+                        print(f"{self.resistenceLineDataFrame}")
+                        self.resistenceLineIntercept = model.intercept_[0]
+                        self.resistenceLineSlope = model.coef_[0][0]
+                        self.resistenceLineRSquared = r_squared
+                        self.resistenceLineEstimationPoints = k
+                        self.resistenceLineEstimationIteration = iteration
+                        print(f'Resistence line found! Best R-squared positive overshoots: {self.resistenceLineRSquared} (associated with k={self.resistenceLineEstimationPoints}); a = {self.resistenceLineIntercept}, b = {self.resistenceLineSlope}')
+        if (self.supportLineRSquared>0) & (self.supportLineEstimationIteration<iteration):
+            tmp_df = self.supportLineDataFrame.copy()
+            tmp_df.reset_index(inplace=True)
+            tmp_df.drop('index', inplace=True, axis=1)
+            tmp_df.loc[len(tmp_df)] = self.overShootDataframe.iloc[len(self.overShootDataframe)-1]
+            subset_df = tmp_df.copy()
+            subset_df.set_index('iteration', inplace=True)
+            #subset_df.drop('index', inplace=True, axis=1)
+            subset = subset_df.midprice
+            X = np.arange(len(subset)).reshape(-1, 1)
+            y = subset.values.reshape(-1, 1)
+            model = LinearRegression()
+            model.fit(X, y)
+            y_pred = model.predict(X)
+            r_squared = compute_r_squared(y, y_pred)
+            print(f'Fitted new observation to support line. New R-squared: {r_squared}, new intercept = {model.intercept_[0]}, new slope = {model.coef_[0]}')
+            if (self.supportLineRSquared - r_squared) > 0.1:
+                if self.supportLineSlope < 0:
+                    if tmp_df.midprice.iloc[len(tmp_df)-1] < tmp_df.midprice.iloc[len(tmp_df)-2]:
+                        self.supportLineBrakeout = 1
+                        self.signalDetected = -3
+                    elif tmp_df.midprice.iloc[len(tmp_df)-1] > tmp_df.midprice.iloc[len(tmp_df)-2]:
+                        self.supportLineConfirmation = 1
+                        self.signalDetected = 3
+                elif self.supportLineSlope > 0:
+                    if tmp_df.midprice.iloc[len(tmp_df)-1] < tmp_df.midprice.iloc[len(tmp_df)-2]:
+                        self.supportLineBrakeout = 1
+                        self.signalDetected = -3
+                    elif tmp_df.midprice.iloc[len(tmp_df)-1] > tmp_df.midprice.iloc[len(tmp_df)-2]:
+                        self.supportLineConfirmation = 1
+                        self.signalDetected = 3
+                if self.supportLineBrakeout == 1:
+                    print(f"supportLine Brakeout confirmed!")
+                if self.supportLineConfirmation == 1:
+                    print(f"supportLine Confirmation confirmed!")
+                self.supportLineDataFrame = pd.DataFrame(columns = ['iteration', 'timestamp', 'midprice', 'direction'])
+                self.supportLineRSquared = 0
+                self.supportLineEstimationPoints = 0
+                self.supportLineIntercept = 0
+                self.supportLineSlope = 0
+        if (self.resistenceLineRSquared>0) & (self.resistenceLineEstimationIteration<iteration):
+            tmp_df = self.resistenceLineDataFrame.copy()
+            tmp_df.reset_index(inplace=True)
+            tmp_df.drop('index', inplace=True, axis=1)
+            tmp_df.loc[len(tmp_df)] = self.overShootDataframe.iloc[len(self.overShootDataframe)-1]
+            subset_df = tmp_df.copy()
+            subset_df.set_index('iteration', inplace=True)
+            #subset_df.drop('index', inplace=True, axis=1)
+            subset = subset_df.midprice
+            X = np.arange(len(subset)).reshape(-1, 1)
+            y = subset.values.reshape(-1, 1)
+            model = LinearRegression()
+            model.fit(X, y)
+            y_pred = model.predict(X)
+            r_squared = compute_r_squared(y, y_pred)
+            print(f'Fitted new observation to resistence line. New R-squared: {r_squared}, new intercept = {model.intercept_[0]}, new slope = {model.coef_[0]}')
+            if (self.resistenceLineRSquared - r_squared) > 0.1:
+                if self.resistenceLineSlope < 0:
+                    if tmp_df.midprice.iloc[len(tmp_df)-1] < tmp_df.midprice.iloc[len(tmp_df)-2]:
+                        self.resistenceLineConfirmation = 1
+                        self.signalDetected = -3
+                    elif tmp_df.midprice.iloc[len(tmp_df)-1] > tmp_df.midprice.iloc[len(tmp_df)-2]:
+                        self.resistenceLineBrakeout = 1
+                        self.signalDetected = 3
+                elif self.best_slope > 0:
+                    if tmp_df.midprice.iloc[len(tmp_df)-1] < tmp_df.midprice.iloc[len(tmp_df)-2]:
+                        self.resistenceLineConfirmation = 1
+                        self.signalDetected = -3
+                    elif tmp_df.midprice.iloc[len(tmp_df)-1] > tmp_df.midprice.iloc[len(tmp_df)-2]:
+                        self.resistenceLineBrakeout = 1
+                        self.signalDetected = 3
+                if self.resistenceLineBrakeout == 1:
+                    print(f"resistenceLine Brakeout confirmed!")
+                if self.resistenceLineConfirmation == 1:
+                    print(f"resistenceLine Confirmation confirmed!")
+                self.resistenceLineDataFrame = pd.DataFrame(columns = ['iteration', 'timestamp', 'midprice', 'direction'])
+                self.resistenceLineRSquared = 0
+                self.resistenceLineEstimationPoints = 0
+                self.resistenceLineIntercept = 0
+                self.resistenceLineSlope = 0
+
+        if config.saveSignalDetectionData:
+            signalDetector_core = [(self.thresholdsForSignalDetector[i], self.currentEventsSignalDetector[i], self.numberOfEventsInBlock[i]) for i in range(len(dcosSignalDetector))]
+            df_signalDetector_core = [item for t in signalDetector_core for item in t]
+            df_signalDetector = pd.DataFrame(columns=columnNamesSignalDetector)
+            df_signalDetector.loc[0] = [tickReader.iteration, tickReader.timestamp, tickReader.midprice, iterationBlock, block] + df_signalDetector_core + [self.signalDetected, self.ongoingSignalLevel, self.trendStrength, self.trendForecast, self.attmoForecast, self.supportLineDataFrame, self.supportLineEstimationIteration, self.supportLineIntercept, self.supportLineSlope, self.supportLineRSquared, self.supportLineEstimationPoints, self.supportLineBrakeout, self.supportLineConfirmation, self.resistenceLineDataFrame, self.resistenceLineEstimationIteration, self.resistenceLineIntercept, self.resistenceLineSlope, self.resistenceLineRSquared, self.resistenceLineEstimationPoints, self.resistenceLineBrakeout, self.resistenceLineConfirmation]
+            df_signalDetector.to_parquet(f"{foldernameSignalDetector}{tickReader.timestamp}_signalDetector.parquet")
+        return self
+
+
+
+
+
+
+    def computeTrendStrengthAndForecast(self, block):
+        if block > 0:
+            if (self.previousPriceLevelsSignalDetector[0]<self.currentPriceLevelsSignalDetector[1]<self.currentPriceLevelsSignalDetector[0]) & (self.previousPriceLevelsSignalDetector[0]<self.currentPriceLevelsSignalDetector[2]<self.currentPriceLevelsSignalDetector[0]) & (self.premiumPredictionIsOngoing==0):
+                if self.ongoingSignalLevel != 3:
+                    self.signalDetected = 3
+                    self.totOscillatorBonus = np.ceil(self.totOscillatorBonus / 3)
+                self.ongoingSignalLevel = 3
+                self.trendStrength = self.startingValuesTrendStrength[5]
+                self.attmoForecast = self.attmoForecastLabels[5]
+            elif (self.previousPriceLevelsSignalDetector[0]>self.currentPriceLevelsSignalDetector[1]>self.currentPriceLevelsSignalDetector[0]) & (self.previousPriceLevelsSignalDetector[0]>self.currentPriceLevelsSignalDetector[2]>self.currentPriceLevelsSignalDetector[0]) & (self.premiumPredictionIsOngoing==0):
+                if self.ongoingSignalLevel != -3:
+                    self.signalDetected = -3
+                    self.totOscillatorBonus = np.ceil(self.totOscillatorBonus / 3)
+                self.ongoingSignalLevel = -3
+                self.trendStrength = self.startingValuesTrendStrength[0]
+                self.attmoForecast = self.attmoForecastLabels[0]
+            if abs(self.ongoingSignalLevel) == 1:
+                if (self.previousPriceLevelsSignalDetector[0]<self.currentPriceLevelsSignalDetector[2]<self.currentPriceLevelsSignalDetector[0]) & (block>0):
+                    if self.ongoingSignalLevel != 2:
+                        self.signalDetected = 2
+                        self.totOscillatorBonus = np.ceil(self.totOscillatorBonus / 2)
+                    self.ongoingSignalLevel = 2
+                    self.trendStrength = self.startingValuesTrendStrength[4]
+                    self.attmoForecast = self.attmoForecastLabels[4]
+                elif (self.previousPriceLevelsSignalDetector[0]>self.currentPriceLevelsSignalDetector[2]>self.currentPriceLevelsSignalDetector[0]) & (block>0):
+                    if self.ongoingSignalLevel != -2:
+                        self.signalDetected = -2
+                        self.totOscillatorBonus = np.ceil(self.totOscillatorBonus / 2)
+                    self.ongoingSignalLevel = -2
+                    self.trendStrength = self.startingValuesTrendStrength[1]
+                    self.attmoForecast = self.attmoForecastLabels[1]
+            if abs(self.ongoingSignalLevel) == 0:
+                if tempEvents[2] == 1:
+                    if self.ongoingSignalLevel != 1:
+                        self.signalDetected = 1
+                    self.ongoingSignalLevel = 1
+                    self.trendStrength = self.startingValuesTrendStrength[3]
+                    self.attmoForecast = self.attmoForecastLabels[3]
+                elif tempEvents[2] == -1:
+                    if self.ongoingSignalLevel != -1:
+                        self.signalDetected = -1
+                    self.trendStrength = self.startingValuesTrendStrength[2]
+                    self.attmoForecast = self.attmoForecastLabels[2]
+            if self.ongoingSignalLevel == 0:
+                self.trendStrength = 50
+            self.trendStrength += self.totOscillatorBonus
+        if self.trendStrength > 100:
+            self.trendStrength = 100
+        elif self.trendStrength < 1:
+            self.trendStrength = 1
+        if 1 <= self.trendStrength < 11:
+            self.trendForecast = self.trendForecastLabels[0]
+        elif 11 <= self.trendStrength < 21:
+            self.trendForecast = self.trendForecastLabels[1]
+        elif 21 <= self.trendStrength < 31:
+            self.trendForecast = self.trendForecastLabels[2]
+        elif 31 <= self.trendStrength < 41:
+            self.trendForecast = self.trendForecastLabels[3]
+        elif 41 <= self.trendStrength < 51:
+            self.trendForecast = self.trendForecastLabels[4]
+        elif 51 <= self.trendStrength < 61:
+            self.trendForecast = self.trendForecastLabels[5]
+        elif 61 <= self.trendStrength < 71:
+            self.trendForecast = self.trendForecastLabels[6]
+        elif 71 <= self.trendStrength < 81:
+            self.trendForecast = self.trendForecastLabels[7]
+        elif 81 <= self.trendStrength < 91:
+            self.trendForecast = self.trendForecastLabels[8]
+        elif 91 <= self.trendStrength < 101:
+            self.trendForecast = self.trendForecastLabels[9]
+        return self
     def run(self, config, t, tickReader, dcosSignalDetector, closePrice, windLevel, iterationBlock, block, columnNamesSignalDetector, foldernameSignalDetector, columnNamesPredictionGenerated, foldernamePredictionsGenerated, columnNamesPredictionOutcome, foldernamePredictionsOutcome):
         midprice = closePrice.getMid()
         tempEvents = list(np.zeros(3))
@@ -191,7 +457,7 @@ class ATTMO_signal_detector:
             signalDetector_core = [(self.thresholdsForSignalDetector[i], self.currentEventsSignalDetector[i], self.numberOfEventsInBlock[i]) for i in range(len(dcosSignalDetector))]
             df_signalDetector_core = [item for t in signalDetector_core for item in t]
             df_signalDetector = pd.DataFrame(columns=columnNamesSignalDetector)
-            df_signalDetector.loc[0] = [tickReader.iteration, tickReader.timestamp, tickReader.midprice, iterationBlock, block] + df_signalDetector_core + [self.signalDetected, self.ongoingSignalLevel, self.trendStrength, self.trendForecast, self.attmoForecast]
+            df_signalDetector.loc[0] = [tickReader.iteration, tickReader.timestamp, tickReader.midprice, iterationBlock, block] + df_signalDetector_core + [self.signalDetected, self.ongoingSignalLevel, self.trendStrength, self.trendForecast, self.attmoForecast, self.supportLineDataFrame, self.supportLineEstimationIteration, self.supportLineIntercept, self.supportLineSlope, self.supportLineRSquared, self.supportLineEstimationPoints, self.supportLineBrakeout, self.supportLineConfirmation, self.resistenceLineDataFrame, self.resistenceLineEstimationIteration, self.resistenceLineIntercept, self.resistenceLineSlope, self.resistenceLineRSquared, self.resistenceLineEstimationPoints, self.resistenceLineBrakeout, self.resistenceLineConfirmation]
             df_signalDetector.to_parquet(f"{foldernameSignalDetector}{tickReader.timestamp}_signalDetector.parquet")
         if (config.verbose) & (abs(self.signalDetected)>0) & (block>0):
             print("")
@@ -307,3 +573,13 @@ class ATTMO_signal_detector:
             dcosSignalDetector[j].reference.level = self.ref_tmp[j]
             dcosSignalDetector[j].nOS = self.nos_tmp[j]
         return self, dcosSignalDetector
+
+
+
+
+def compute_r_squared(y_true, y_pred):
+    residual = y_true - y_pred
+    ss_total = np.sum((y_true - np.mean(y_true))**2)
+    ss_res = np.sum(residual**2)
+    r_squared = 1 - (ss_res / ss_total)
+    return r_squared
