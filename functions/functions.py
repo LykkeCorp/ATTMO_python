@@ -37,9 +37,9 @@ def generate_dataframes_column_names():
     colNames_SD = [item for t in colNames_sd for item in t]
     columnNamesSignalDetector.extend(colNames_SD)
     columnNamesSignalDetector.extend(['signalDetected', 'ongoingSignalLevel', 'trendStrength', 'trendForecast', 'attmoForecast',
-                    'supportLineDataFrame', 'supportLineEstimationIteration', 'supportLineIntercept', 'supportLineSlope', 'supportLineRSquared',
+                    'supportLineEstimationIteration', 'supportLineIntercept', 'supportLineSlope', 'supportLineRSquared',
                     'supportLineEstimationPoints', 'supportLineBrakeout', 'supportLineConfirmation',
-                    'resistenceLineDataFrame', 'resistenceLineEstimationIteration', 'resistenceLineIntercept', 'resistenceLineSlope', 'resistenceLineRSquared',
+                    'resistenceLineEstimationIteration', 'resistenceLineIntercept', 'resistenceLineSlope', 'resistenceLineRSquared',
                     'resistenceLineEstimationPoints', 'resistenceLineBrakeout', 'resistenceLineConfirmation'])
 
 

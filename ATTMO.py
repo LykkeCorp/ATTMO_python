@@ -81,8 +81,8 @@ def on_message(ws, message):
     global client, config, assetString
     global tickReader, interpolators, signalDetectors, predictionGenerators
     global dcosInterpolation, dcosSignalDetection
-    global foldername, foldernameTicks
-    global columnNamesTickReader, columnNamesInterpolator, columnNamesSignalDetector, columnNamesPredictionGenerated, columnNamesPredictionOutcome
+    global foldername, foldernameTicks,columnNamesTickReader
+    global columnNamesInterpolator, columnNamesSignalDetector, columnNamesPredictionGenerated, columnNamesPredictionOutcome
 
 
     ####### 1. Read tick & update counters #######
@@ -92,26 +92,28 @@ def on_message(ws, message):
     closePrice = DcOS_TrendGenerator.Price(tickReader.midprice, tickReader.midprice, tickReader.iteration)
 
 
-    for t in range(len(config.timeHorizons)):
-        foldernameTimeHorizon = foldername+config.timeHorizons[t]+"/"
-        foldernameInterpolation = foldernameTimeHorizon+"interpolation/"
-        foldernameSignalDetector = foldernameTimeHorizon+"signal_detector/"
-        foldernamePredictionsGenerated = foldernameTimeHorizon+"predictions_generated/"
-        foldernamePredictionsOutcome = foldernameTimeHorizon+"predictions_outcome/"
+    #or t in range(len(config.timeHorizons)):
+    t = 0
+    foldernameTimeHorizon = foldername+config.timeHorizons[t]+"/"
+    foldernameInterpolation = foldernameTimeHorizon+"interpolation/"
+    foldernameSignalDetector = foldernameTimeHorizon+"signal_detector/"
+    foldernamePredictionsGenerated = foldernameTimeHorizon+"predictions_generated/"
+    foldernamePredictionsOutcome = foldernameTimeHorizon+"predictions_outcome/"
 
 
-        ####### 2. run interpolation #######
-        interpolators[t] = interpolators[t].run(t, dcosInterpolation[t], closePrice)
+    ####### 2. run interpolation #######
+    interpolators[t] = interpolators[t].run(t, dcosInterpolation[t], closePrice)
 
 
-        ####### 3. run signal detection #######
-        signalDetectors[t] = signalDetectors[t].run(config, t, tickReader, dcosSignalDetection[t], closePrice, interpolators[t].windLevel, interpolators[t].iterationBlock, interpolators[t].block, columnNamesSignalDetector, foldernameSignalDetector, columnNamesPredictionGenerated, foldernamePredictionsGenerated, columnNamesPredictionOutcome, foldernamePredictionsOutcome)
+    ####### 3. run signal detection #######
+    #signalDetectors[t] = signalDetectors[t].run(config, t, tickReader, dcosSignalDetection[t], closePrice, interpolators[t].windLevel, interpolators[t].iterationBlock, interpolators[t].block, columnNamesSignalDetector, foldernameSignalDetector, columnNamesPredictionGenerated, foldernamePredictionsGenerated, columnNamesPredictionOutcome, foldernamePredictionsOutcome)
+    signalDetectors[t] = signalDetectors[t].update(config, tickReader, dcosSignalDetection[t], closePrice, interpolators[t].iterationBlock, interpolators[t].block, columnNamesSignalDetector, foldernameSignalDetector, columnNamesPredictionGenerated, foldernamePredictionsGenerated, columnNamesPredictionOutcome, foldernamePredictionsOutcome)
 
 
-        ####### 4. compute volatility #######
-        if interpolators[t].iterationBlock == interpolators[t].blockLength:
-            interpolators[t] = interpolators[t].interpolate(config, t, tickReader, signalDetectors[t].target, signalDetectors[t].stopLoss, columnNamesInterpolator, foldernameInterpolation)
-            signalDetectors[t], dcosSignalDetection[t] = signalDetectors[t].reset(dcosSignalDetection[t], closePrice, interpolators[t].interpolatedThresholds)
+    ####### 4. compute volatility #######
+    if interpolators[t].iterationBlock == interpolators[t].blockLength:
+        interpolators[t] = interpolators[t].interpolate(config, t, tickReader, signalDetectors[t].target, signalDetectors[t].stopLoss, columnNamesInterpolator, foldernameInterpolation)
+        signalDetectors[t], dcosSignalDetection[t] = signalDetectors[t].reset(dcosSignalDetection[t], closePrice, interpolators[t].interpolatedThresholds)
 
 
 
