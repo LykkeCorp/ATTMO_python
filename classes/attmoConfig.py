@@ -1,7 +1,7 @@
 import numpy as np
 
 
-class ATTMO_config:
+class attmoConfig:
     __slots__ = ['symbol_1', 'symbol_2',
         'attmoForecastLabels', 'timeHorizons',
         'startingValuesTrendStrength', 'trendForecastLabels',

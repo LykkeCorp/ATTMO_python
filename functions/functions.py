@@ -14,13 +14,15 @@ def create_folders(foldername, timeHorizons):
         os.makedirs(foldername_time_horizon)
         foldername_interpolation = foldername_time_horizon+"interpolation/"
         foldername_signal_detector = foldername_time_horizon+"signal_detector/"
-        foldername_predictions_generated = foldername_time_horizon+"predictions_generated/"
-        foldername_predictions_outcome = foldername_time_horizon+"predictions_outcome/"
+        foldername_predictions = foldername_time_horizon+"predictions/"
+        #foldername_predictions_generated = foldername_time_horizon+"predictions_generated/"
+        #foldername_predictions_outcome = foldername_time_horizon+"predictions_outcome/"
         foldername_images = foldername_time_horizon+"images/"
         os.makedirs(foldername_interpolation)
         os.makedirs(foldername_signal_detector)
-        os.makedirs(foldername_predictions_generated)
-        os.makedirs(foldername_predictions_outcome)
+        os.makedirs(foldername_predictions)
+        #os.makedirs(foldername_predictions_generated)
+        #os.makedirs(foldername_predictions_outcome)
         os.makedirs(foldername_images)
 
 
@@ -37,23 +39,25 @@ def generate_dataframes_column_names():
     colNames_SD = [item for t in colNames_sd for item in t]
     columnNamesSignalDetector.extend(colNames_SD)
     columnNamesSignalDetector.extend(['signalDetected', 'ongoingSignalLevel', 'trendStrength', 'trendForecast', 'attmoForecast',
-                    'supportLineEstimationIteration', 'supportLineIntercept', 'supportLineSlope', 'supportLineRSquared',
-                    'supportLineEstimationPoints', 'supportLineBrakeout', 'supportLineConfirmation',
-                    'resistenceLineEstimationIteration', 'resistenceLineIntercept', 'resistenceLineSlope', 'resistenceLineRSquared',
-                    'resistenceLineEstimationPoints', 'resistenceLineBrakeout', 'resistenceLineConfirmation'])
+                    'supportLineEstimationIteration', 'supportLineIntercept', 'supportLineSlope', 'supportLineRSquared', 'supportLineEstimationPoints',
+                    'resistenceLineEstimationIteration', 'resistenceLineIntercept', 'resistenceLineSlope', 'resistenceLineRSquared', 'resistenceLineEstimationPoints'])
 
+    ## predictor
+    #columnNamesPredictionGenerated = ["iteration", "timestamp", "midprice", "iterationBlock", "block",
+    #        'predictionPriceChangePt', 'predictionDirection', 'attmoForecast', 'target', 'stopLoss',
+    #        'predictionDurationTicks', 'predictionOutcome', 'nrTargetReached', 'nrStopLossReached']
 
+    #columnNamesPredictionOutcome = ["iteration", "timestamp", "midprice", "iterationBlock", "block",
+    #        'iterationPredictionStart', 'midpricePredictionStart', 'timestampPredictionStart',
+    #        'attmoForecast', 'target', 'stopLoss',
+    #        'predictionDurationTicks', 'predictionOutcome', 'nrTargetReached', 'nrStopLossReached']
 
-    # predictor
-    columnNamesPredictionGenerated = ["iteration", "timestamp", "midprice", "iterationBlock", "block",
-            'predictionPriceChangePt', 'predictionDirection', 'attmoForecast', 'target', 'stopLoss',
+    columnNamesPredictions =  ['iterationPredictionStart', 'timestampPredictionStart', 'midpricePredictionStart',
+            'predictionPriceChangePt', 'predictionDirection', 'signal', 'target', 'stopLoss',
+            'iterationPredictionEnd', 'timestampPredictionEnd', 'midpricePredictionEnd',
             'predictionDurationTicks', 'predictionOutcome', 'nrTargetReached', 'nrStopLossReached']
 
-    columnNamesPredictionOutcome = ["iteration", "timestamp", "midprice", "iterationBlock", "block",
-            'iterationPredictionStart', 'midpricePredictionStart', 'timestampPredictionStart',
-            'attmoForecast', 'target', 'stopLoss',
-            'predictionDurationTicks', 'predictionOutcome', 'nrTargetReached', 'nrStopLossReached']
-    return columnNamesTickReader, columnNamesInterpolator, columnNamesSignalDetector, columnNamesPredictionGenerated, columnNamesPredictionOutcome
+    return columnNamesTickReader, columnNamesInterpolator, columnNamesSignalDetector, columnNamesPredictions
 
 
 def copy_configuration_file(foldername, config_file_str, now, symbol_1, symbol_2):

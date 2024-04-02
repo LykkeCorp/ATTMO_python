@@ -12,13 +12,13 @@ timeHorizons = ['shortterm', '1h', '4h', '1d', '3d', '1w']
 # interpolation settings
 log_spaced_values = np.logspace(1, -3, 30)
 thresholdsForInterpolation = list(np.round(np.flip(log_spaced_values)/100,10))
-desiredEventFrequenciesList = [[0.05, 0.01, 0.005],
+desiredEventFrequenciesList = [[0.05, 0.01, 0.001],
                                [0.0025, 0.00075, 0.00025],
                                [0.0005, 0.0001, 0.00005],
                                [0.000075, 0.000025, 0.00001],
                                [0.000025, 0.0000125, 0.0000075],
-                               [0.000025, 0.0000125, 0.0000075]]
-desiredNumberOfLargestEventsPerBlock = 2.5
+                               [0.0000125, 0.0000075, 0.0000005]]
+desiredNumberOfLargestEventsPerBlock = 0.5 #2.5
 blockLengths = []
 for i in range(len(desiredEventFrequenciesList)):
    blockLengths.append(np.round(desiredNumberOfLargestEventsPerBlock / desiredEventFrequenciesList[i][2]))
@@ -36,5 +36,5 @@ savePredictionData = 1
 
 
 # configuration settings
-runOnLocal = 1
+runOnLocal = 0 #1
 verbose = 1
