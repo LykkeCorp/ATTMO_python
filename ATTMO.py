@@ -66,26 +66,28 @@ for t in range(len(config.timeHorizons)):
     foldernameInterpolation = foldernameTimeHorizon+"interpolation/"
     foldernameSignalDetector = foldernameTimeHorizon+"signal_detector/"
     foldernamePredictions = foldernameTimeHorizon+"predictions/"
-    #foldernamePredictionsOutcome = foldernameTimeHorizon+"predictions_outcome/"
+    foldernameImages = foldernameTimeHorizon+"images/"
+    foldernameImagesInterpolation = foldernameImages+"interpolation/"
+    foldernameImagesSignalDetector = foldernameImages+"signal_detector/"
 
 
     ####### initialise interpolators #######
-    interpolators[t] = attmoInterpolator(config, t, columnNamesInterpolator, foldernameInterpolation)
+    interpolators[t] = attmoInterpolator(config, t, columnNamesInterpolator, foldernameInterpolation, foldernameImagesInterpolation)
     dcosInterpolation[t] = [[] for _ in range(len(config.thresholdsForInterpolation))]
     for i in range(len(config.thresholdsForInterpolation)):
         dcosInterpolation[t][i] = DcOS_TrendGenerator.DcOS(config.thresholdsForInterpolation[i], -1)
 
 
     ####### initialise signal detectors #######
-    signalDetectors[t] = attmoSignalDetector(config, t, columnNamesSignalDetector, foldernameSignalDetector)
+    signalDetectors[t] = attmoSignalDetector(config, t, columnNamesSignalDetector, foldernameSignalDetector, foldernameImagesSignalDetector)
     eventsSignalDetector[t] = intrinsicTimeEventsSignalDetector(config.timeHorizons[t], config.thresholdsForInterpolation[t+9:t+12])
     dcosSignalDetection[t] = [[] for _ in range(3)]
     for j in range(3):
         dcosSignalDetection[t][j] = DcOS_TrendGenerator.DcOS(config.thresholdsForInterpolation[t+9+j], -1) #interpolators[t].interpolatedThresholds[j]
     crossSignals[t] = crossSignal()
     trendLineSignals[t] = [[] for _ in range(2)]
-    trendLineSignals[t][0] = trendLineSignal(-1)
-    trendLineSignals[t][1] = trendLineSignal(1)
+    trendLineSignals[t][0] = trendLineSignal(-1, config.plotData, foldernameImagesSignalDetector)
+    trendLineSignals[t][1] = trendLineSignal(1, config.plotData, foldernameImagesSignalDetector)
     predictionGenerators[t] = predictionGenerator(config.timeHorizons[t], columnNamesPredictions, foldernamePredictions, config.savePredictionData, config.verbose)
 
 

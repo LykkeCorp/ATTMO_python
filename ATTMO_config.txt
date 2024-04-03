@@ -18,7 +18,7 @@ desiredEventFrequenciesList = [[0.05, 0.01, 0.001],
                                [0.000075, 0.000025, 0.00001],
                                [0.000025, 0.0000125, 0.0000075],
                                [0.0000125, 0.0000075, 0.0000005]]
-desiredNumberOfLargestEventsPerBlock = 0.5 #2.5
+desiredNumberOfLargestEventsPerBlock = 0.3 #0.5 #2.5
 blockLengths = []
 for i in range(len(desiredEventFrequenciesList)):
    blockLengths.append(np.round(desiredNumberOfLargestEventsPerBlock / desiredEventFrequenciesList[i][2]))
@@ -34,7 +34,9 @@ saveInterpolationData = 1
 saveSignalDetectionData = 1
 savePredictionData = 1
 
+plotData = 1
+
 
 # configuration settings
-runOnLocal = 0 #1
+runOnLocal = 1
 verbose = 1

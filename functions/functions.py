@@ -24,7 +24,11 @@ def create_folders(foldername, timeHorizons):
         #os.makedirs(foldername_predictions_generated)
         #os.makedirs(foldername_predictions_outcome)
         os.makedirs(foldername_images)
-
+        foldername_images_interpolation = foldername_images + "interpolation/"
+        os.makedirs(foldername_images_interpolation)
+        foldername_images_signal_detector = foldername_images + "signal_detector/"
+        os.makedirs(foldername_images_signal_detector)
+        
 
 def generate_dataframes_column_names():
     # tickReader

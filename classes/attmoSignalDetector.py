@@ -13,8 +13,9 @@ class attmoSignalDetector:
         'trendStrength', 'trendForecast',
         'alphaParameterExpFunction', 'betaParameterExpFunction',
         'attmoForecastLabels', 'attmoForecast',
-        'colNamesDf', 'outputDir']
-    def __init__(self, config, t, columnNamesSignalDetector, foldernameSignalDetector):
+        'colNamesDf', 'outputDir',
+        'plotData', 'outputDirImgs']
+    def __init__(self, config, t, columnNamesSignalDetector, foldernameSignalDetector, foldernameImagesSignalDetector):
         self.timeHorizon = config.timeHorizons[t]
         self.thresholdsForSignalDetector = config.thresholdsForInterpolation[t+9:t+12]
         self.signalDetected = 0
@@ -30,6 +31,7 @@ class attmoSignalDetector:
         self.attmoForecastLabels = ['Stormy', 'Rainy', 'Cloudy', 'Foggy', 'Mostly sunny', 'Sunny', 'Tropical']
         self.colNamesDf = columnNamesSignalDetector
         self.outputDir = foldernameSignalDetector
+
     def update(self, config, tickReader, dcosTraceGenerator, dcosEventsSignalDetector, predictionGenerator, crossSignal, trendLines, closePrice, iterationBlock, block):
         self.signalDetected = 0
 
@@ -56,13 +58,13 @@ class attmoSignalDetector:
                 self.signalDetected = -2
 
             if events[2] == -2:
-                trendLines[0] = trendLines[0].detectTrendLine()
+                trendLines[0] = trendLines[0].detectTrendLine(tickReader)
             elif events[2] == 2:
-                trendLines[1] = trendLines[1].detectTrendLine()
+                trendLines[1] = trendLines[1].detectTrendLine(tickReader)
 
         if block > 0:
             predictionGenerator = predictionGenerator.generatePrediction(self.signalDetected, dcosTraceGenerator[1].threshold, config.predictionFactor, tickReader)
-            
+
         if abs(self.signalDetected) > 0:
             self.mostRecentPredictionLevel = self.signalDetected
         self.trendStrength = self.startingValuesTrendStrength[self.mostRecentPredictionLevel + 3]
@@ -243,18 +245,21 @@ class crossSignal:
 
 class trendLineSignal:
     __slots__ = ['overShootDataframe', 'overshootsDirection', 'trendLineDataFrame',
-        'estimationIteration', 'estimationPoints', 'intercept', 'slope', 'rSquared',
-        'signal']
-    def __init__(self, overshootsDirection):
+        'estimationIteration', 'estimationTimestamp', 'estimationPoints', 'intercept', 'slope', 'rSquared',
+        'plotData', 'outputDirImgs', 'signal']
+    def __init__(self, overshootsDirection, config_plotData, foldernameImagesSignalDetector):
         self.overShootDataframe = pd.DataFrame(columns = ['iteration', 'timestamp', 'midprice', 'direction'])
         self.overshootsDirection = overshootsDirection
         self.trendLineDataFrame = pd.DataFrame(columns = ['iteration', 'timestamp', 'midprice', 'direction'])
         self.estimationIteration = 0
+        self.estimationTimestamp = ''
         self.estimationPoints = 0
         self.intercept = 0
         self.slope = 0
         self.rSquared = 0
         self.signal = 0
+        self.plotData = config_plotData
+        self.outputDirImgs = foldernameImagesSignalDetector
     def updateAndFitToNewData(self, tickReader, LOSevents):
         self.signal = 0
         self.overShootDataframe.loc[len(self.overShootDataframe)] = [tickReader.iteration, tickReader.timestamp, tickReader.midprice, LOSevents]
@@ -290,15 +295,30 @@ class trendLineSignal:
                     elif tmp_df.midprice.iloc[len(tmp_df)-1] > tmp_df.midprice.iloc[len(tmp_df)-2]:
                         self.signal = 2
             if abs(self.signal) > 0:
+                if self.plotData:
+                    if self.overshootsDirection < 0:
+                        prefix = "Support"
+                    elif self.overshootsDirection > 0:
+                        prefix = "Resistance"
+                    plt.scatter(X, y, label='Data points')
+                    plt.plot(X, y_pred, color='red', label='Linear Regression')
+                    plt.xlabel('Iteration')
+                    plt.ylabel('Midprice')
+                    plt.title(f"{prefix} line; model: y={np.round(self.slope,3)}x+{np.round(self.intercept,3)} r-squared={np.round(rSquared,3)}")
+                    plt.legend()
+                    plt.grid(True)
+                    plt.savefig(f"{self.outputDirImgs}{prefix}_line_deviation_{self.estimationTimestamp}.pdf")
+                    plt.show()
                 self.overShootDataframe = pd.DataFrame(columns = ['iteration', 'timestamp', 'midprice', 'direction'])
                 self.trendLineDataFrame = pd.DataFrame(columns = ['iteration', 'timestamp', 'midprice', 'direction'])
                 self.estimationIteration = 0
+                self.estimationTimestamp = ''
                 self.estimationPoints = 0
                 self.intercept = 0
                 self.slope = 0
                 self.rSquared = 0
         return self
-    def detectTrendLine(self):
+    def detectTrendLine(self, tickReader):
         df = self.overShootDataframe.copy()
         #if ((currentEvent>0) & (self.overshootsDirection>0)) | ((currentEvent<0) & (self.overshootsDirection<0))
         if len(df) == 10:
@@ -331,7 +351,22 @@ class trendLineSignal:
                         self.slope = model.coef_[0][0]
                         self.rSquared = r_squared
                         self.estimationPoints = k
-                        self.estimationIteration = tickReader
+                        self.estimationIteration = tickReader.iteration
+                        self.estimationTimestamp = tickReader.timestamp
+                        if self.plotData:
+                            if self.overshootsDirection < 0:
+                                prefix = "Support"
+                            elif self.overshootsDirection > 0:
+                                prefix = "Resistance"
+                            plt.scatter(X, y, label='Data points')
+                            plt.plot(X, y_pred, color='red', label='Linear Regression')
+                            plt.xlabel('Iteration')
+                            plt.ylabel('Midprice')
+                            plt.title(f"{prefix} line; k={self.estimationPoints}; model: y={np.round(self.slope,3)}x+{np.round(self.intercept,3)} r-squared={np.round(self.rSquared,3)}")
+                            plt.legend()
+                            plt.grid(True)
+                            plt.savefig(f"{self.outputDirImgs}{prefix}_line_detected_{self.estimationIteration}.pdf")
+                            plt.show()
         return self
 
 

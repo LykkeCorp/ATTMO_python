@@ -1,8 +1,12 @@
 import numpy as np
 import pandas as pd
-from DcOS_TrendGenerator import *
+
 from scipy.optimize import curve_fit
 from sklearn.metrics import r2_score
+
+import matplotlib.pyplot as plt
+
+from DcOS_TrendGenerator import *
 
 
 class attmoInterpolator:
@@ -12,9 +16,9 @@ class attmoInterpolator:
         'nrOfEventsInBlock', 'currentEventsInterpolator', 'interpolatedThresholds',
         'alphaParameterExpFunction', 'betaParameterExpFunction', 'rSquaredExpFunction',
         'windLabels', 'windLevel', 'windLabel',
-        'saveData', 'colNamesDf', 'outputDir',
+        'saveData', 'colNamesDf', 'outputDir', 'plotData', 'outputDirImgs',
         'verbose']
-    def __init__(self, config, timeHorizonIndex, colNames_interp, foldername_interpolation):
+    def __init__(self, config, timeHorizonIndex, colNames_interp, foldernameInterpolation, foldernameImagesInterpolation):
         self.timeHorizonIndex = timeHorizonIndex
         self.timeHorizon = config.timeHorizons[timeHorizonIndex]
         self.thresholdsForInterpolation = np.array(config.thresholdsForInterpolation)
@@ -33,7 +37,9 @@ class attmoInterpolator:
         self.windLevel = 0
         self.saveData = config.saveInterpolationData
         self.colNamesDf = colNames_interp
-        self.outputDir = foldername_interpolation
+        self.outputDir = foldernameInterpolation
+        self.plotData = config.plotData
+        self.outputDirImgs = foldernameImagesInterpolation
         self.verbose = config.verbose
     def run(self, DCOS_interpolation, close_price):
         self.iterationBlock += 1
@@ -74,6 +80,16 @@ class attmoInterpolator:
             df_interp = pd.DataFrame(columns=self.colNamesDf)
             df_interp.loc[0] = [tickReader.iteration, tickReader.timestamp, tickReader.midprice, self.iterationBlock, self.block, self.interpolatedThresholds[0], self.interpolatedThresholds[1], self.interpolatedThresholds[2], self.alphaParameterExpFunction, self.betaParameterExpFunction, self.rSquaredExpFunction, self.windLevel, self.windLabel]
             df_interp.to_parquet(f"{self.outputDir}{tickReader.timestamp}_interpolation.parquet")
+        if self.plotData:
+            plt.scatter(x_data, y_data, label='Data')
+            plt.plot(x_data, y_pred, 'r-', label='Predicted')
+            plt.xlabel('DcOS Threshold')
+            plt.ylabel('Events Count')
+            plt.title(f"Model: y = {np.round(self.alphaParameterExpFunction,3)} * np.exp({np.round(self.betaParameterExpFunction,3)} * x), R-squared = {np.round(self.rSquaredExpFunction,3)}")
+            plt.legend()
+            plt.savefig(f"{self.outputDirImgs}interpolation_block_{self.block:05}.pdf")
+            plt.show()
+
         self.iterationBlock = 0
         self.block += 1
         self.nrOfEventsInBlock = list(np.zeros(len(self.thresholdsForInterpolation)))

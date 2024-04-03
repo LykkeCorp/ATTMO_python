@@ -8,7 +8,7 @@ class attmoConfig:
         'thresholdsForInterpolation', 'desiredEventFrequenciesList', 'blockLengths',
         'predictionFactor',
         'saveTickData', 'saveSignalDetectionData', 'saveInterpolationData', 'savePredictionData',
-        'runOnLocal', 'verbose']
+        'plotData', 'runOnLocal', 'verbose']
     def __init__(self):
         with open('ATTMO_config.txt', 'r') as file:
             config_content = file.read()
@@ -38,6 +38,7 @@ class attmoConfig:
         self.saveInterpolationData = config_dict.get('saveInterpolationData', None)
         self.saveSignalDetectionData = config_dict.get('saveSignalDetectionData', None)
         self.savePredictionData = config_dict.get('saveSignalDetectionData', None)
+        self.plotData = config_dict.get('plotData', None)
 
         # Configuration settings
         self.runOnLocal = config_dict.get('runOnLocal', None)
