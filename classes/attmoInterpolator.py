@@ -81,12 +81,13 @@ class attmoInterpolator:
             df_interp.loc[0] = [tickReader.iteration, tickReader.timestamp, tickReader.midprice, self.iterationBlock, self.block, self.interpolatedThresholds[0], self.interpolatedThresholds[1], self.interpolatedThresholds[2], self.alphaParameterExpFunction, self.betaParameterExpFunction, self.rSquaredExpFunction, self.windLevel, self.windLabel]
             df_interp.to_parquet(f"{self.outputDir}{tickReader.timestamp}_interpolation.parquet")
         if self.plotData:
-            plt.scatter(x_data, y_data, label='Data')
-            plt.plot(x_data, y_pred, 'r-', label='Predicted')
+            plt.scatter(x_data, y_data, color='k', label='Data')
+            plt.plot(x_data, y_pred, 'c-', label='Predicted')
             plt.xlabel('DcOS Threshold')
             plt.ylabel('Events Count')
             plt.title(f"Model: y = {np.round(self.alphaParameterExpFunction,3)} * np.exp({np.round(self.betaParameterExpFunction,3)} * x), R-squared = {np.round(self.rSquaredExpFunction,3)}")
             plt.legend()
+            plt.grid(True)
             plt.savefig(f"{self.outputDirImgs}interpolation_block_{self.block:05}.pdf")
             plt.show()
 

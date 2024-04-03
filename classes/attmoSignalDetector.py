@@ -1,6 +1,9 @@
 import numpy as np
 import pandas as pd
+
 from sklearn.linear_model import LinearRegression
+
+import matplotlib.pyplot as plt
 
 from DcOS_TrendGenerator import *
 
@@ -245,7 +248,7 @@ class crossSignal:
 
 class trendLineSignal:
     __slots__ = ['overShootDataframe', 'overshootsDirection', 'trendLineDataFrame',
-        'estimationIteration', 'estimationTimestamp', 'estimationPoints', 'intercept', 'slope', 'rSquared',
+        'estimationIteration', 'estimationTimestamp', 'estimationPoints', 'intercept', 'slope', 'rSquared', # 'model',
         'plotData', 'outputDirImgs', 'signal']
     def __init__(self, overshootsDirection, config_plotData, foldernameImagesSignalDetector):
         self.overShootDataframe = pd.DataFrame(columns = ['iteration', 'timestamp', 'midprice', 'direction'])
@@ -258,6 +261,7 @@ class trendLineSignal:
         self.slope = 0
         self.rSquared = 0
         self.signal = 0
+        #self.model = []
         self.plotData = config_plotData
         self.outputDirImgs = foldernameImagesSignalDetector
     def updateAndFitToNewData(self, tickReader, LOSevents):
@@ -289,22 +293,32 @@ class trendLineSignal:
                 print("")
                 print(f"{tickReader.timestamp}: Fitted new observation to support line") #. New R-squared: {np.round(r_squared,3)}, new intercept = {np.round(model.intercept_[0],3)}, new slope = {np.round(model.coef_[0],3)}")
                 print(f"self.rSquared - r_squared = {self.rSquared - r_squared}")
-                if (self.rSquared - r_squared) > 0.1:
-                    if tmp_df.midprice.iloc[len(tmp_df)-1] < tmp_df.midprice.iloc[len(tmp_df)-2]:
+                print(f"Last point y = {y[-1]} vs predicted y = {y_pred[-1]}")
+                if (self.rSquared - r_squared) > 0.05:
+                    #predicted_y = self.alphaParameterExpFunction *  + self.betaParameterExpFunction
+                    #y_values_to_find = np.array(self.desiredEventFrequencies) * 100
+                    #self.interpolatedThresholds = [find_threshold_for_event_frequency(y, self.alphaParameterExpFunction, self.betaParameterExpFunction) for y in y_values_to_find]
+                    if y_pred[-1] > y[-1]:
+                    #if tmp_df.midprice.iloc[len(tmp_df)-1] < tmp_df.midprice.iloc[len(tmp_df)-2]:
                         self.signal = -2
-                    elif tmp_df.midprice.iloc[len(tmp_df)-1] > tmp_df.midprice.iloc[len(tmp_df)-2]:
+                    elif y_pred[-1] < y[-1]:
+                    #elif tmp_df.midprice.iloc[len(tmp_df)-1] > tmp_df.midprice.iloc[len(tmp_df)-2]:
                         self.signal = 2
             if abs(self.signal) > 0:
                 if self.plotData:
+                    plot_X = X[:-1]
+                    plot_y = y[:-1]
                     if self.overshootsDirection < 0:
                         prefix = "Support"
+                        col = 'green'
                     elif self.overshootsDirection > 0:
                         prefix = "Resistance"
-                    plt.scatter(X, y, label='Data points')
-                    plt.plot(X, y_pred, color='red', label='Linear Regression')
+                        col = 'red'
+                    plt.scatter(X, y, color='k', label='Data points')
+                    plt.plot(plot_X, plot_y, color=col, label='Linear Regression')
                     plt.xlabel('Iteration')
                     plt.ylabel('Midprice')
-                    plt.title(f"{prefix} line; model: y={np.round(self.slope,3)}x+{np.round(self.intercept,3)} r-squared={np.round(rSquared,3)}")
+                    plt.title(f"{prefix} line; model: y={np.round(self.slope,3)}x+{np.round(self.intercept,3)} r-squared={np.round(r_squared,3)}")
                     plt.legend()
                     plt.grid(True)
                     plt.savefig(f"{self.outputDirImgs}{prefix}_line_deviation_{self.estimationTimestamp}.pdf")
@@ -317,6 +331,7 @@ class trendLineSignal:
                 self.intercept = 0
                 self.slope = 0
                 self.rSquared = 0
+                #self.model = []
         return self
     def detectTrendLine(self, tickReader):
         df = self.overShootDataframe.copy()
@@ -344,7 +359,7 @@ class trendLineSignal:
                     model.fit(X, y)
                     y_pred = model.predict(X)
                     r_squared = compute_r_squared(y, y_pred)
-                    if (r_squared>self.rSquared) & (r_squared>.9): # & (self.supportLineBrakeout==0) & (self.supportLineConfirmation==0):
+                    if (r_squared>self.rSquared) & (r_squared>0.95): # & (self.supportLineBrakeout==0) & (self.supportLineConfirmation==0):
                         print(f"Trend line updated!")
                         self.trendLineDataFrame = subset_df
                         self.intercept = model.intercept_[0]
@@ -353,19 +368,22 @@ class trendLineSignal:
                         self.estimationPoints = k
                         self.estimationIteration = tickReader.iteration
                         self.estimationTimestamp = tickReader.timestamp
+                        #self.model = model
                         if self.plotData:
                             if self.overshootsDirection < 0:
                                 prefix = "Support"
+                                col = 'green'
                             elif self.overshootsDirection > 0:
                                 prefix = "Resistance"
-                            plt.scatter(X, y, label='Data points')
-                            plt.plot(X, y_pred, color='red', label='Linear Regression')
+                                col = 'red'
+                            plt.scatter(X, y, color='k', label='Data points')
+                            plt.plot(X, y_pred, color=col, label='Linear Regression')
                             plt.xlabel('Iteration')
                             plt.ylabel('Midprice')
                             plt.title(f"{prefix} line; k={self.estimationPoints}; model: y={np.round(self.slope,3)}x+{np.round(self.intercept,3)} r-squared={np.round(self.rSquared,3)}")
                             plt.legend()
                             plt.grid(True)
-                            plt.savefig(f"{self.outputDirImgs}{prefix}_line_detected_{self.estimationIteration}.pdf")
+                            plt.savefig(f"{self.outputDirImgs}{prefix}_line_detected_{self.estimationTimestamp}.pdf")
                             plt.show()
         return self
 
