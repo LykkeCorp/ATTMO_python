@@ -60,12 +60,18 @@ class attmoInterpolator:
         self.rSquaredExpFunction = r2_score(y_data, y_pred)
         y_values_to_find = np.array(self.desiredEventFrequencies) * 100
         self.interpolatedThresholds = [find_threshold_for_event_frequency(y, self.alphaParameterExpFunction, self.betaParameterExpFunction) for y in y_values_to_find]
-        if ((self.alphaParameterExpFunction>100) & (abs(self.betaParameterExpFunction)>10000)) | ((self.alphaParameterExpFunction<100) & (abs(self.betaParameterExpFunction)<10000)) | (abs(self.betaParameterExpFunction)<12000):
-            self.windLevel = 0
-        if (self.alphaParameterExpFunction<100) & (abs(self.betaParameterExpFunction)>10000):
-            self.windLevel = 1
-        if ((self.alphaParameterExpFunction>100) & (abs(self.betaParameterExpFunction)<10000)) | (abs(self.betaParameterExpFunction)<8500):
+        #if ((self.alphaParameterExpFunction>100) & (abs(self.betaParameterExpFunction)>10000)) | ((self.alphaParameterExpFunction<100) & (abs(self.betaParameterExpFunction)<10000)) | (abs(self.betaParameterExpFunction)<12000):
+        #    self.windLevel = 0
+        #if (self.alphaParameterExpFunction<100) & (abs(self.betaParameterExpFunction)>10000):
+        #    self.windLevel = 1
+        #if ((self.alphaParameterExpFunction>100) & (abs(self.betaParameterExpFunction)<10000)) | (abs(self.betaParameterExpFunction)<8500):
+        #    self.windLevel = 2
+        if self.rSquaredExpFunction <= 0.92:
+            self.windLevel = 3
+        elif 0.96 <= self.rSquaredExpFunction < 0.92:
             self.windLevel = 2
+        else:
+            self.windLevel = 1
         self.windLabel = self.windLabels[self.windLevel]
         if self.verbose:
             print("")

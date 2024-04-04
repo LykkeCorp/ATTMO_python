@@ -10,7 +10,7 @@ from DcOS_TrendGenerator import *
 
 class attmoSignalDetector:
     __slots__ = ['timeHorizon', 'thresholdsForSignalDetector',
-        'signalDetected', 'mostRecentPredictionLevel',
+        'signalDetected', 'currentForecastLevel',
         'totOscillatorBonus', 'ongoingSignalLevel',
         'startingValuesTrendStrength', 'trendForecastLabels',
         'trendStrength', 'trendForecast',
@@ -22,7 +22,7 @@ class attmoSignalDetector:
         self.timeHorizon = config.timeHorizons[t]
         self.thresholdsForSignalDetector = config.thresholdsForInterpolation[t+9:t+12]
         self.signalDetected = 0
-        self.mostRecentPredictionLevel = 0
+        self.currentForecastLevel = 0
         self.trendStrength = 50
         self.trendForecast = "NONE"
         self.alphaParameterExpFunction = 0
@@ -68,27 +68,47 @@ class attmoSignalDetector:
         if block > 0:
             predictionGenerator = predictionGenerator.generatePrediction(self.signalDetected, dcosTraceGenerator[1].threshold, config.predictionFactor, tickReader)
 
-        if abs(self.signalDetected) > 0:
-            self.mostRecentPredictionLevel = self.signalDetected
-        self.trendStrength = self.startingValuesTrendStrength[self.mostRecentPredictionLevel + 3]
+        if (self.currentForecastLevel==0) & (abs(self.signalDetected)>0):
+            self.currentForecastLevel = self.signalDetected
+            print("New ATTMO forecast!")
+        if (len(predictionGenerator.predictionsDataFrame)==0) & (abs(self.signalDetected)>0):
+            self.currentForecastLevel = self.signalDetected
+            #print("New ATTMO forecast!")
+        else:
+            if (self.currentForecastLevel>0) & (abs(self.signalDetected)>0):
+                maxSignal = np.max(abs(np.array(predictionGenerator.predictionsDataFrame.signal)))
+                if abs(self.signalDetected) > maxSignal:
+                    self.currentForecastLevel = self.signalDetected
+                    print("New ATTMO forecast!")
+                elif abs(self.signalDetected) == maxSignal:
+                    idxMaxPosSignal = np.where(self.overShootDataframe.midprice == maxSignal)
+                    idxMaxNegSignal = np.where(self.overShootDataframe.midprice == -maxSignal)
+                    if (self.signalDetected>0) & (len(idxMaxPosSignal[0])>len(idxMaxNegSignal[0])):
+                        self.currentForecastLevel = self.signalDetected
+                        print("New ATTMO forecast!")
+                    elif (self.signalDetected<0) & (len(idxMaxPosSignal[0])<len(idxMaxNegSignal[0])):
+                        self.currentForecastLevel = self.signalDetected
+                        print("New ATTMO forecast!")
+        self.trendStrength = self.startingValuesTrendStrength[self.currentForecastLevel + 3]
         self.trendStrength += dcosEventsSignalDetector.totOscillatorBonus
         if self.trendStrength > 100:
             self.trendStrength = 100
         elif self.trendStrength < 1:
             self.trendStrength = 1
         self.trendForecast = self.trendForecastLabels[int(np.floor(self.trendStrength/10))]
-        self.attmoForecast = self.attmoForecastLabels[self.mostRecentPredictionLevel + 3]
+        self.attmoForecast = self.attmoForecastLabels[self.currentForecastLevel + 3]
 
         if config.saveSignalDetectionData:
-            self.saveSignalDetection(tickReader, dcosEventsSignalDetector, iterationBlock, block, trendLines)
+            self.saveSignalDetection(tickReader, dcosEventsSignalDetector, events, iterationBlock, block, trendLines)
         return self
 
 
-    def saveSignalDetection(self, tickReader, dcosEventsSignalDetector, iterationBlock, block, trendLines):
-        signalDetector_core = [(self.thresholdsForSignalDetector[i], dcosEventsSignalDetector.currentEvents[i], dcosEventsSignalDetector.numberOfEventsInBlock[i]) for i in range(len(self.thresholdsForSignalDetector))]
+    def saveSignalDetection(self, tickReader, dcosEventsSignalDetector, events, iterationBlock, block, trendLines):
+        signalDetector_core = [(self.thresholdsForSignalDetector[i], events[i], dcosEventsSignalDetector.numberOfEventsInBlock[i]) for i in range(len(self.thresholdsForSignalDetector))] # dcosEventsSignalDetector.currentEvents[i]
         df_signalDetector_core = [item for t in signalDetector_core for item in t]
         df_signalDetector = pd.DataFrame(columns=self.colNamesDf)
-        df_signalDetector.loc[0] = [tickReader.iteration, tickReader.timestamp, tickReader.midprice, iterationBlock, block] + df_signalDetector_core + [self.signalDetected, self.mostRecentPredictionLevel, self.trendStrength, self.trendForecast, self.attmoForecast, trendLines[0].estimationIteration, trendLines[0].intercept, trendLines[0].slope, trendLines[0].rSquared, trendLines[0].estimationPoints, trendLines[1].estimationIteration, trendLines[1].intercept, trendLines[1].slope, trendLines[1].rSquared, trendLines[1].estimationPoints]
+        df_signalDetector.loc[0] = [tickReader.iteration, tickReader.timestamp, tickReader.midprice, iterationBlock, block] + df_signalDetector_core + [self.signalDetected, self.currentForecastLevel, self.trendStrength, self.trendForecast, self.attmoForecast, trendLines[0].intercept, trendLines[0].slope, trendLines[0].rSquared, trendLines[0].estimationPoints, trendLines[0].iterationFirstSample, trendLines[0].timestampFirstSample, trendLines[0].iterationLastSample, trendLines[0].timestampLastSample, trendLines[1].intercept, trendLines[1].slope, trendLines[1].rSquared, trendLines[1].estimationPoints, trendLines[1].iterationFirstSample, trendLines[1].timestampFirstSample, trendLines[1].iterationLastSample, trendLines[1].timestampLastSample]
+        # trendLines[0].estimationIteration, trendLines[1].estimationIteration,
         df_signalDetector.to_parquet(f"{self.outputDir}{tickReader.timestamp}_signalDetector.parquet")
 
 
@@ -247,144 +267,202 @@ class crossSignal:
 
 
 class trendLineSignal:
-    __slots__ = ['overShootDataframe', 'overshootsDirection', 'trendLineDataFrame',
-        'estimationIteration', 'estimationTimestamp', 'estimationPoints', 'intercept', 'slope', 'rSquared', # 'model',
+    __slots__ = ['overShootDataframe', 'overshootsDirection', 'trendLineDataFrame', 'X', 'y', # 'estimationIteration', 'estimationTimestamp',
+        'estimationPoints', 'intercept', 'slope', 'rSquared',
+        'iterationFirstSample', 'timestampFirstSample', 'iterationLastSample', 'timestampLastSample', 'updateModelWithNewOS',
         'plotData', 'outputDirImgs', 'signal']
     def __init__(self, overshootsDirection, config_plotData, foldernameImagesSignalDetector):
         self.overShootDataframe = pd.DataFrame(columns = ['iteration', 'timestamp', 'midprice', 'direction'])
+        self.X = []
+        self.y = []
         self.overshootsDirection = overshootsDirection
         self.trendLineDataFrame = pd.DataFrame(columns = ['iteration', 'timestamp', 'midprice', 'direction'])
-        self.estimationIteration = 0
-        self.estimationTimestamp = ''
+        #self.estimationIteration = 0
+        #self.estimationTimestamp = ''
         self.estimationPoints = 0
         self.intercept = 0
         self.slope = 0
         self.rSquared = 0
         self.signal = 0
-        #self.model = []
+        self.iterationFirstSample = 0
+        self.timestampFirstSample = ''
+        self.iterationLastSample = 0
+        self.timestampLastSample = ''
+        self.updateModelWithNewOS = 0
         self.plotData = config_plotData
         self.outputDirImgs = foldernameImagesSignalDetector
-    def updateAndFitToNewData(self, tickReader, LOSevents):
+    def updateAndFitToNewData(self, tickReader, osEvent):
         self.signal = 0
-        self.overShootDataframe.loc[len(self.overShootDataframe)] = [tickReader.iteration, tickReader.timestamp, tickReader.midprice, LOSevents]
+        self.overShootDataframe.loc[len(self.overShootDataframe)] = [tickReader.iteration, tickReader.timestamp, tickReader.midprice, osEvent]
         if len(self.overShootDataframe) == 11:
             self.overShootDataframe = self.overShootDataframe.drop([0])
             self.overShootDataframe.reset_index(inplace=True)
             if 'index' in self.overShootDataframe.columns:
                 self.overShootDataframe.drop('index', inplace=True, axis=1)
             if len(self.trendLineDataFrame) > 0:
-                tmp_df = self.trendLineDataFrame.copy()
-                tmp_df.reset_index(inplace=True)
-                if 'index' in self.overShootDataframe.columns:
-                    tmp_df.drop('index', inplace=True, axis=1)
-                tmp_df.loc[len(tmp_df)] = self.overShootDataframe.iloc[len(self.overShootDataframe)-1]
-                subset_df = tmp_df.copy()
-                subset_df.set_index('iteration', inplace=True)
-                if 'index' in subset_df.columns:
-                    subset_df.drop('index', inplace=True, axis=1)
-                subset = subset_df.midprice
-                #X = np.arange(len(subset)).reshape(-1, 1)
-                X = subset.index.values.reshape(-1, 1)
-                y = subset.values.reshape(-1, 1)
-                model = LinearRegression()
-                model.fit(X, y)
-                y_pred = model.predict(X)
+                #tmp_df = self.trendLineDataFrame.copy()
+                #tmp_df.reset_index(inplace=True)
+                #if 'index' in self.overShootDataframe.columns:
+                #    tmp_df.drop('index', inplace=True, axis=1)
+                #tmp_df.loc[len(tmp_df)] = self.overShootDataframe.iloc[len(self.overShootDataframe)-1]
+                #setToFit_df = tmp_df.copy()
+                #setToFit_df.set_index('iteration', inplace=True)
+                #if 'index' in setToFit_df.columns:
+                #    setToFit_df.drop('index', inplace=True, axis=1)
+                #setToFit = setToFit_df.midprice
+                lX = list(self.X) + [tickReader.iteration]
+                X = np.array(lX).reshape(-1, 1)
+                ly = list(self.y) + [tickReader.midprice]
+                y = np.array(ly).reshape(-1, 1)
+                #X = setToFit.index.values.reshape(-1, 1)
+                #y = setToFit.values.reshape(-1, 1)
+                #model = LinearRegression()
+                #model.fit(X, y)
+                #y_pred = model.predict(X)
+                y_pred = []
+                [y_pred.append(self.slope*x+self.intercept) for x in X]
                 r_squared = compute_r_squared(y, y_pred)
                 print("")
                 print(f"{tickReader.timestamp}: Fitted new observation to support line") #. New R-squared: {np.round(r_squared,3)}, new intercept = {np.round(model.intercept_[0],3)}, new slope = {np.round(model.coef_[0],3)}")
                 print(f"self.rSquared - r_squared = {self.rSquared - r_squared}")
                 print(f"Last point y = {y[-1]} vs predicted y = {y_pred[-1]}")
-                if (self.rSquared - r_squared) > 0.05:
-                    #predicted_y = self.alphaParameterExpFunction *  + self.betaParameterExpFunction
-                    #y_values_to_find = np.array(self.desiredEventFrequencies) * 100
-                    #self.interpolatedThresholds = [find_threshold_for_event_frequency(y, self.alphaParameterExpFunction, self.betaParameterExpFunction) for y in y_values_to_find]
+                if (self.rSquared - r_squared) > 0.1:
                     if y_pred[-1] > y[-1]:
-                    #if tmp_df.midprice.iloc[len(tmp_df)-1] < tmp_df.midprice.iloc[len(tmp_df)-2]:
-                        self.signal = -2
+                        if self.estimationPoints < 4:
+                            self.signal = -2
+                        else:
+                            self.signal = -3
                     elif y_pred[-1] < y[-1]:
-                    #elif tmp_df.midprice.iloc[len(tmp_df)-1] > tmp_df.midprice.iloc[len(tmp_df)-2]:
-                        self.signal = 2
+                        if self.estimationPoints < 4:
+                            self.signal = 2
+                        else:
+                            self.signal = 3
+                    print(f"Trend line signal = {self.signal}")
+                else:
+                    self.updateModelWithNewOS = 1
+
             if abs(self.signal) > 0:
                 if self.plotData:
-                    plot_X = X[:-1]
-                    plot_y = y[:-1]
-                    if self.overshootsDirection < 0:
-                        prefix = "Support"
-                        col = 'green'
-                    elif self.overshootsDirection > 0:
-                        prefix = "Resistance"
-                        col = 'red'
-                    plt.scatter(X, y, color='k', label='Data points')
-                    plt.plot(plot_X, plot_y, color=col, label='Linear Regression')
-                    plt.xlabel('Iteration')
-                    plt.ylabel('Midprice')
-                    plt.title(f"{prefix} line; model: y={np.round(self.slope,3)}x+{np.round(self.intercept,3)} r-squared={np.round(r_squared,3)}")
-                    plt.legend()
-                    plt.grid(True)
-                    plt.savefig(f"{self.outputDirImgs}{prefix}_line_deviation_{self.estimationTimestamp}.pdf")
-                    plt.show()
-                self.overShootDataframe = pd.DataFrame(columns = ['iteration', 'timestamp', 'midprice', 'direction'])
-                self.trendLineDataFrame = pd.DataFrame(columns = ['iteration', 'timestamp', 'midprice', 'direction'])
-                self.estimationIteration = 0
-                self.estimationTimestamp = ''
-                self.estimationPoints = 0
-                self.intercept = 0
-                self.slope = 0
-                self.rSquared = 0
-                #self.model = []
+                    self.plotConfirmationOrBrakeout(X, y, y_pred)
+                self = self.reset()
         return self
     def detectTrendLine(self, tickReader):
         df = self.overShootDataframe.copy()
-        #if ((currentEvent>0) & (self.overshootsDirection>0)) | ((currentEvent<0) & (self.overshootsDirection<0))
         if len(df) == 10:
             if self.overshootsDirection < 0:
-            #if df.direction.iloc[len(df)-1] < 0:
                 df = df[df.direction<0]
             elif self.overshootsDirection > 0:
-            #elif df.direction.iloc[len(df)-1] > 0:
                 df = df[df.direction>0]
             if len(df) > 2:
-                for k in range(3,len(df)):
-                    subset_df = df.iloc[len(df)-k:len(df)]
-                    #print(f"subset_df = {subset_df}")
-                    subset_df.set_index('iteration', inplace=True)
-                    if 'index' in subset_df.columns:
-                        subset_df.drop('index', inplace=True, axis=1)
-                    #print(f"subset_df = {subset_df}")
-                    subset = subset_df.midprice
-                    #X = np.arange(len(subset)).reshape(-1, 1)
-                    X = subset.index.values.reshape(-1, 1)
-                    y = subset.values.reshape(-1, 1)
-                    model = LinearRegression()
-                    model.fit(X, y)
-                    y_pred = model.predict(X)
-                    r_squared = compute_r_squared(y, y_pred)
-                    if (r_squared>self.rSquared) & (r_squared>0.95): # & (self.supportLineBrakeout==0) & (self.supportLineConfirmation==0):
-                        print(f"Trend line updated!")
-                        self.trendLineDataFrame = subset_df
-                        self.intercept = model.intercept_[0]
-                        self.slope = model.coef_[0][0]
-                        self.rSquared = r_squared
-                        self.estimationPoints = k
-                        self.estimationIteration = tickReader.iteration
-                        self.estimationTimestamp = tickReader.timestamp
-                        #self.model = model
-                        if self.plotData:
-                            if self.overshootsDirection < 0:
-                                prefix = "Support"
-                                col = 'green'
-                            elif self.overshootsDirection > 0:
-                                prefix = "Resistance"
-                                col = 'red'
-                            plt.scatter(X, y, color='k', label='Data points')
-                            plt.plot(X, y_pred, color=col, label='Linear Regression')
-                            plt.xlabel('Iteration')
-                            plt.ylabel('Midprice')
-                            plt.title(f"{prefix} line; k={self.estimationPoints}; model: y={np.round(self.slope,3)}x+{np.round(self.intercept,3)} r-squared={np.round(self.rSquared,3)}")
-                            plt.legend()
-                            plt.grid(True)
-                            plt.savefig(f"{self.outputDirImgs}{prefix}_line_detected_{self.estimationTimestamp}.pdf")
-                            plt.show()
+                if self.updateModelWithNewOS:
+                    k = self.estimationPoints+1
+                    self = self.fitLineToSetConfirmation(df, k)
+                    self.updateModelWithNewOS = 0
+                else:
+                    for k in range(3,len(df)):
+                        self = self.fitLineToNewSet(df, k)
+        return self
+    def fitLineToSetConfirmation(self, df, k):
+        setToFit_df = df.iloc[len(df)-k:len(df)]
+        setToFit_df.set_index('iteration', inplace=True)
+        if 'index' in setToFit_df.columns:
+            setToFit_df.drop('index', inplace=True, axis=1)
+        setToFit = setToFit_df.midprice
+        X = setToFit.index.values.reshape(-1, 1)
+        y = setToFit.values.reshape(-1, 1)
+        model = LinearRegression()
+        model.fit(X, y)
+        y_pred = model.predict(X)
+        print(f"Trend line updated!")
+        self.trendLineDataFrame = setToFit_df
+        self.X = setToFit.index.values
+        self.y = setToFit.values
+        self.intercept = model.intercept_[0]
+        self.slope = model.coef_[0][0]
+        self.rSquared = compute_r_squared(y, y_pred)
+        self.estimationPoints = k
+        if self.plotData:
+            self.plotNewTrendLine(X, y, y_pred)
+        return self
+    def fitLineToNewSet(self, df, k):
+        setToFit_df = df.iloc[len(df)-k:len(df)]
+        setToFit_df.set_index('iteration', inplace=True)
+        if 'index' in setToFit_df.columns:
+            setToFit_df.drop('index', inplace=True, axis=1)
+        setToFit = setToFit_df.midprice
+        X = setToFit.index.values.reshape(-1, 1)
+        y = setToFit.values.reshape(-1, 1)
+        model = LinearRegression()
+        model.fit(X, y)
+        y_pred = model.predict(X)
+        r_squared = compute_r_squared(y, y_pred)
+        if (r_squared>self.rSquared) & (r_squared>0.95):
+            print(f"Trend line updated!")
+            self.trendLineDataFrame = setToFit_df
+            self.X = setToFit.index.values
+            self.y = setToFit.values
+            self.intercept = model.intercept_[0]
+            self.slope = model.coef_[0][0]
+            self.rSquared = r_squared
+            self.estimationPoints = k
+            #self.estimationIteration = tickReader.iteration
+            #self.estimationTimestamp = tickReader.timestamp
+            self.iterationFirstSample = setToFit_df.index.values[0]
+            self.timestampFirstSample = setToFit_df.timestamp.iloc[0]
+            self.iterationLastSample = setToFit_df.index.values[len(setToFit_df)-1]
+            self.timestampLastSample = setToFit_df.timestamp.iloc[len(setToFit_df)-1]
+            if self.plotData:
+                self.plotNewTrendLine(X, y, y_pred)
+        return self
+    def plotNewTrendLine(self, X, y, y_pred):
+        if self.overshootsDirection < 0:
+            prefix = "Support"
+            col = 'green'
+        elif self.overshootsDirection > 0:
+            prefix = "Resistance"
+            col = 'red'
+        plt.scatter(X, y, color='k', label='Data points')
+        plt.plot(X, y_pred, color=col, label='Linear Regression')
+        plt.xlabel('Iteration')
+        plt.ylabel('Midprice')
+        plt.title(f"{prefix} line; k={self.estimationPoints}; model: y={np.round(self.slope,3)}x+{np.round(self.intercept,3)} r-squared={np.round(self.rSquared,3)}")
+        plt.legend()
+        plt.grid(True)
+        plt.savefig(f"{self.outputDirImgs}{prefix}_line_detected_{self.timestampFirstSample}.pdf") # estimationTimestamp
+        plt.show()
+    def plotConfirmationOrBrakeout(self, X, y, y_pred):
+        if self.overshootsDirection < 0:
+            prefix = "Support"
+            col = 'green'
+            plt.plot(X[-2:], y_pred[-2:], '--g')
+        elif self.overshootsDirection > 0:
+            prefix = "Resistance"
+            col = 'red'
+            plt.plot(X[-2:], y_pred[-2:], '--r')
+        plt.scatter(X, y, color='k', label='Data points')
+        plt.plot(X[:-1], y_pred[:-1], color=col, label='Linear Regression')
+        plt.xlabel('Iteration')
+        plt.ylabel('Midprice')
+        plt.title(f"{prefix} line; model: y={np.round(self.slope,3)}x+{np.round(self.intercept,3)} r-squared={np.round(self.rSquared,3)}")
+        plt.legend()
+        plt.grid(True)
+        plt.savefig(f"{self.outputDirImgs}{prefix}_line_deviation_{self.timestampFirstSample}.pdf") # estimationTimestamp
+        plt.show()
+    def reset(self):
+        self.overShootDataframe = pd.DataFrame(columns = ['iteration', 'timestamp', 'midprice', 'direction'])
+        self.X = []
+        self.y = []
+        self.trendLineDataFrame = pd.DataFrame(columns = ['iteration', 'timestamp', 'midprice', 'direction'])
+        #self.estimationIteration = 0
+        #self.estimationTimestamp = ''
+        self.estimationPoints = 0
+        self.intercept = 0
+        self.slope = 0
+        self.rSquared = 0
+        self.iterationFirstSample = 0
+        self.timestampFirstSample = ''
+        self.iterationLastSample = 0
+        self.timestampLastSample = ''
         return self
 
 

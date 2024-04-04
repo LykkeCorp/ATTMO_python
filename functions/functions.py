@@ -28,7 +28,7 @@ def create_folders(foldername, timeHorizons):
         os.makedirs(foldername_images_interpolation)
         foldername_images_signal_detector = foldername_images + "signal_detector/"
         os.makedirs(foldername_images_signal_detector)
-        
+
 
 def generate_dataframes_column_names():
     # tickReader
@@ -42,9 +42,11 @@ def generate_dataframes_column_names():
     colNames_sd = [(f"threshold{j}", f"currentEvent{j}", f"nrOfEventsInBlock{j}") for j in range(3)]
     colNames_SD = [item for t in colNames_sd for item in t]
     columnNamesSignalDetector.extend(colNames_SD)
-    columnNamesSignalDetector.extend(['signalDetected', 'ongoingSignalLevel', 'trendStrength', 'trendForecast', 'attmoForecast',
-                    'supportLineEstimationIteration', 'supportLineIntercept', 'supportLineSlope', 'supportLineRSquared', 'supportLineEstimationPoints',
-                    'resistenceLineEstimationIteration', 'resistenceLineIntercept', 'resistenceLineSlope', 'resistenceLineRSquared', 'resistenceLineEstimationPoints'])
+    columnNamesSignalDetector.extend(['signalDetected', 'ongoingSignalLevel', 'trendStrength', 'trendForecast', 'attmoForecast', # 'supportLineEstimationIteration',
+                    'supportLineIntercept', 'supportLineSlope', 'supportLineRSquared', 'supportLineEstimationPoints',
+                    'supportLineFirstSample', 'supportLineFirstTimestamp', 'supportLineLastSample', 'supportLineLastTimestamp',
+                    'resistanceLineIntercept', 'resistanceLineSlope', 'resistanceLineRSquared', 'resistanceLineEstimationPoints', # 'resistanceLineEstimationIteration', 
+                    'resistanceLineFirstSample', 'resistanceLineFirstTimestamp', 'resistanceLineLastSample', 'resistanceLineLastTimestamp'])
 
     ## predictor
     #columnNamesPredictionGenerated = ["iteration", "timestamp", "midprice", "iterationBlock", "block",
