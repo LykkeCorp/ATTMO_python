@@ -323,7 +323,10 @@ class trendLineSignal:
                 [y_pred.append(self.slope*x+self.intercept) for x in X]
                 r_squared = compute_r_squared(y, y_pred)
                 print("")
-                print(f"{tickReader.timestamp}: Fitted new observation to support line") #. New R-squared: {np.round(r_squared,3)}, new intercept = {np.round(model.intercept_[0],3)}, new slope = {np.round(model.coef_[0],3)}")
+                if self.overshootsDirection < 0:
+                    print(f"{tickReader.timestamp}: Fitted new observation to support line") #. New R-squared: {np.round(r_squared,3)}, new intercept = {np.round(model.intercept_[0],3)}, new slope = {np.round(model.coef_[0],3)}")
+                else:
+                    print(f"{tickReader.timestamp}: Fitted new observation to resistance line")
                 print(f"self.rSquared - r_squared = {self.rSquared - r_squared}")
                 print(f"Last point y = {y[-1]} vs predicted y = {y_pred[-1]}")
                 if (self.rSquared - r_squared) > 0.1:
@@ -338,13 +341,11 @@ class trendLineSignal:
                         else:
                             self.signal = 3
                     print(f"Trend line signal = {self.signal}")
+                    if self.plotData:
+                        self.plotConfirmationOrBrakeout(X, y, y_pred)
+                    self = self.reset()
                 else:
                     self.updateModelWithNewOS = 1
-
-            if abs(self.signal) > 0:
-                if self.plotData:
-                    self.plotConfirmationOrBrakeout(X, y, y_pred)
-                self = self.reset()
         return self
     def detectTrendLine(self, tickReader):
         df = self.overShootDataframe.copy()
@@ -355,8 +356,9 @@ class trendLineSignal:
                 df = df[df.direction>0]
             if len(df) > 2:
                 if self.updateModelWithNewOS:
-                    k = self.estimationPoints+1
-                    self = self.fitLineToSetConfirmation(df, k)
+                    if self.estimationPoints > 2:
+                        k = self.estimationPoints+1
+                        self = self.fitLineToSetConfirmation(df, k)
                     self.updateModelWithNewOS = 0
                 else:
                     for k in range(3,len(df)):
@@ -575,4 +577,8 @@ def compute_r_squared(y_true, y_pred):
     ss_total = np.sum((y_true - np.mean(y_true))**2)
     ss_res = np.sum(residual**2)
     r_squared = 1 - (ss_res / ss_total)
+    if r_squared < 0:
+        r_squared = 0
+    elif r_squared > 1:
+        r_squared = 1
     return r_squared
