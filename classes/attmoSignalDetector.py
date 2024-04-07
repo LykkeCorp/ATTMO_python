@@ -104,10 +104,10 @@ class attmoSignalDetector:
 
 
     def saveSignalDetection(self, tickReader, dcosEventsSignalDetector, events, iterationBlock, block, trendLines):
-        signalDetector_core = [(self.thresholdsForSignalDetector[i], events[i], dcosEventsSignalDetector.numberOfEventsInBlock[i]) for i in range(len(self.thresholdsForSignalDetector))] # dcosEventsSignalDetector.currentEvents[i]
+        signalDetector_core = [(self.thresholdsForSignalDetector[i], events[i], dcosEventsSignalDetector.numberOfEventsInBlock[i]) for i in range(len(self.thresholdsForSignalDetector))]
         df_signalDetector_core = [item for t in signalDetector_core for item in t]
         df_signalDetector = pd.DataFrame(columns=self.colNamesDf)
-        df_signalDetector.loc[0] = [tickReader.iteration, tickReader.timestamp, tickReader.midprice, iterationBlock, block] + df_signalDetector_core + [self.signalDetected, self.currentForecastLevel, self.trendStrength, self.trendForecast, self.attmoForecast, trendLines[0].intercept, trendLines[0].slope, trendLines[0].rSquared, trendLines[0].estimationPoints, trendLines[0].iterationFirstSample, trendLines[0].timestampFirstSample, trendLines[0].iterationLastSample, trendLines[0].timestampLastSample, trendLines[1].intercept, trendLines[1].slope, trendLines[1].rSquared, trendLines[1].estimationPoints, trendLines[1].iterationFirstSample, trendLines[1].timestampFirstSample, trendLines[1].iterationLastSample, trendLines[1].timestampLastSample]
+        df_signalDetector.loc[0] = [tickReader.iteration, tickReader.timestamp, tickReader.midprice, iterationBlock, block] + df_signalDetector_core + [self.signalDetected, self.currentForecastLevel, self.trendStrength, self.trendForecast, self.attmoForecast, trendLines[0].intercept, trendLines[0].slope, trendLines[0].rSquared, trendLines[0].estimationPoints, trendLines[0].iterationFirstSample, trendLines[0].timestampFirstSample, trendLines[0].midpriceFirstSample, trendLines[0].iterationLastSample, trendLines[0].timestampLastSample, trendLines[0].midpriceLastSample, trendLines[1].intercept, trendLines[1].slope, trendLines[1].rSquared, trendLines[1].estimationPoints, trendLines[1].iterationFirstSample, trendLines[1].timestampFirstSample, trendLines[1].midpriceFirstSample, trendLines[1].iterationLastSample, trendLines[1].timestampLastSample, trendLines[1].midpriceLastSample]
         # trendLines[0].estimationIteration, trendLines[1].estimationIteration,
         df_signalDetector.to_parquet(f"{self.outputDir}{tickReader.timestamp}_signalDetector.parquet")
 
@@ -269,7 +269,9 @@ class crossSignal:
 class trendLineSignal:
     __slots__ = ['overShootDataframe', 'overshootsDirection', 'trendLineDataFrame', 'X', 'y', # 'estimationIteration', 'estimationTimestamp',
         'estimationPoints', 'intercept', 'slope', 'rSquared',
-        'iterationFirstSample', 'timestampFirstSample', 'iterationLastSample', 'timestampLastSample', 'updateModelWithNewOS',
+        'iterationFirstSample', 'timestampFirstSample', 'midpriceFirstSample',
+        'iterationLastSample', 'timestampLastSample', 'midpriceLastSample',
+        'updateModelWithNewOS',
         'plotData', 'outputDirImgs', 'signal']
     def __init__(self, overshootsDirection, config_plotData, foldernameImagesSignalDetector):
         self.overShootDataframe = pd.DataFrame(columns = ['iteration', 'timestamp', 'midprice', 'direction'])
@@ -286,8 +288,10 @@ class trendLineSignal:
         self.signal = 0
         self.iterationFirstSample = 0
         self.timestampFirstSample = ''
+        self.midpriceFirstSample = 0
         self.iterationLastSample = 0
         self.timestampLastSample = ''
+        self.midpriceLastSample = 0
         self.updateModelWithNewOS = 0
         self.plotData = config_plotData
         self.outputDirImgs = foldernameImagesSignalDetector
@@ -411,8 +415,10 @@ class trendLineSignal:
             #self.estimationTimestamp = tickReader.timestamp
             self.iterationFirstSample = setToFit_df.index.values[0]
             self.timestampFirstSample = setToFit_df.timestamp.iloc[0]
+            self.midpriceFirstSample = setToFit_df.midprice.iloc[0]
             self.iterationLastSample = setToFit_df.index.values[len(setToFit_df)-1]
             self.timestampLastSample = setToFit_df.timestamp.iloc[len(setToFit_df)-1]
+            self.midpriceLastSample = setToFit_df.midprice.iloc[len(setToFit_df)-1]
             if self.plotData:
                 self.plotNewTrendLine(X, y, y_pred)
         return self
@@ -463,8 +469,10 @@ class trendLineSignal:
         self.rSquared = 0
         self.iterationFirstSample = 0
         self.timestampFirstSample = ''
+        self.midpriceFirstSample = 0
         self.iterationLastSample = 0
         self.timestampLastSample = ''
+        self.midpriceLastSample = 0
         return self
 
 

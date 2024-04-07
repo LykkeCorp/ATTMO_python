@@ -44,9 +44,11 @@ def generate_dataframes_column_names():
     columnNamesSignalDetector.extend(colNames_SD)
     columnNamesSignalDetector.extend(['signalDetected', 'ongoingSignalLevel', 'trendStrength', 'trendForecast', 'attmoForecast', # 'supportLineEstimationIteration',
                     'supportLineIntercept', 'supportLineSlope', 'supportLineRSquared', 'supportLineEstimationPoints',
-                    'supportLineFirstSample', 'supportLineFirstTimestamp', 'supportLineLastSample', 'supportLineLastTimestamp',
-                    'resistanceLineIntercept', 'resistanceLineSlope', 'resistanceLineRSquared', 'resistanceLineEstimationPoints', # 'resistanceLineEstimationIteration', 
-                    'resistanceLineFirstSample', 'resistanceLineFirstTimestamp', 'resistanceLineLastSample', 'resistanceLineLastTimestamp'])
+                    'supportLineFirstSample', 'supportLineFirstTimestamp', 'supportLineFirstMidprice',
+                    'supportLineLastSample', 'supportLineLastTimestamp', 'supportLineLastMidprice',
+                    'resistanceLineIntercept', 'resistanceLineSlope', 'resistanceLineRSquared', 'resistanceLineEstimationPoints', # 'resistanceLineEstimationIteration',
+                    'resistanceLineFirstSample', 'resistanceLineFirstTimestamp', 'resistanceLineFirstMidprice',
+                    'resistanceLineLastSample', 'resistanceLineLastTimestamp', 'resistanceLineLastMidprice'])
 
     ## predictor
     #columnNamesPredictionGenerated = ["iteration", "timestamp", "midprice", "iterationBlock", "block",
