@@ -11,7 +11,7 @@ from DcOS_TrendGenerator import *
 class attmoSignalDetector:
     __slots__ = ['timeHorizon', 'thresholdsForSignalDetector',
         'signalDetected', 'currentForecastLevel',
-        'totOscillatorBonus', 'ongoingSignalLevel',
+        'totOscillatorBonus',
         'startingValuesTrendStrength', 'trendForecastLabels',
         'trendStrength', 'trendForecast',
         'alphaParameterExpFunction', 'betaParameterExpFunction',
@@ -42,7 +42,20 @@ class attmoSignalDetector:
         for j in range(3):
             events[j] = dcosTraceGenerator[j].run(closePrice)
         dcosEventsSignalDetector = dcosEventsSignalDetector.update(dcosTraceGenerator, events, closePrice)
-        predictionGenerator = predictionGenerator.checkOngoingPredictions(tickReader)
+
+        if len(predictionGenerator.predictionsDataFrame) == 0:
+            self.currentForecastLevel = 0
+            maxSignalPre = 0
+        else:
+            maxSignalPre = np.max(abs(np.array(predictionGenerator.predictionsDataFrame.signal)))
+            predictionGenerator = predictionGenerator.checkOngoingPredictions(tickReader)
+            maxSignal = np.max(abs(np.array(predictionGenerator.predictionsDataFrame.signal)))
+            if maxSignal < maxSignalPre:
+                idxMaxSignalPos = np.where(predictionGenerator.predictionsDataFrame.signal == maxSignal)
+                idxMaxSignalNeg = np.where(predictionGenerator.predictionsDataFrame.signal == -maxSignal)
+                idx = list(np.sort(list(idxMaxSignalPos[0]) + list(idxMaxSignalNeg[0])))
+                self.currentForecastLevel = predictionGenerator.predictionsDataFrame.signal.iloc[idx[len(idx)-1]]
+                print(f"Attmo forecast update due to expiration of max. lvl. pred.: {self.currentForecastLevel}")
 
         if (abs(events[0])>0):
             crossSignal = crossSignal.generateSignal(dcosEventsSignalDetector)
@@ -51,52 +64,55 @@ class attmoSignalDetector:
         if abs(events[2]) == 2:
             for i in range(2):
                 trendLines[i] = trendLines[i].updateAndFitToNewData(tickReader, events[2])
-            if ((trendLines[0].signal==2) & (trendLines[1].rSquared>0)) | ((trendLines[1].signal==2) & (trendLines[0].rSquared>0)):
+            if (trendLines[0].signal==3) | (trendLines[1].signal==3):
                 self.signalDetected = 3
-            elif ((trendLines[0].signal==-2) & (trendLines[1].rSquared>0)) | ((trendLines[1].signal==-2) & (trendLines[0].rSquared>0)):
+            elif (trendLines[0].signal==-3) | (trendLines[1].signal==-3):
                 self.signalDetected = -3
             elif (trendLines[0].signal==2) | (trendLines[1].signal==2):
                 self.signalDetected = 2
             elif (trendLines[0].signal==-2) | (trendLines[1].signal==-2):
                 self.signalDetected = -2
+            #if ((trendLines[0].signal==2) & (trendLines[1].rSquared>0)) | ((trendLines[1].signal==2) & (trendLines[0].rSquared>0)):
+            #    self.signalDetected = 3
+            #elif ((trendLines[0].signal==-2) & (trendLines[1].rSquared>0)) | ((trendLines[1].signal==-2) & (trendLines[0].rSquared>0)):
+            #    self.signalDetected = -3
+            #elif (trendLines[0].signal==2) | (trendLines[1].signal==2):
+            #    self.signalDetected = 2
+            #elif (trendLines[0].signal==-2) | (trendLines[1].signal==-2):
+            #    self.signalDetected = -2
 
             if events[2] == -2:
-                trendLines[0] = trendLines[0].detectTrendLine(tickReader)
+                trendLines[0] = trendLines[0].detectTrendLine()
             elif events[2] == 2:
-                trendLines[1] = trendLines[1].detectTrendLine(tickReader)
+                trendLines[1] = trendLines[1].detectTrendLine()
 
-        if block > 0:
-            predictionGenerator = predictionGenerator.generatePrediction(self.signalDetected, dcosTraceGenerator[1].threshold, config.predictionFactor, tickReader)
+        #if block > 0:
+        predictionGenerator = predictionGenerator.generatePrediction(self.signalDetected, dcosTraceGenerator[1].threshold, config.predictionFactor, tickReader)
 
-        if (self.currentForecastLevel==0) & (abs(self.signalDetected)>0):
-            self.currentForecastLevel = self.signalDetected
-            print("New ATTMO forecast!")
-        if (len(predictionGenerator.predictionsDataFrame)==0) & (abs(self.signalDetected)>0):
-            self.currentForecastLevel = self.signalDetected
-            #print("New ATTMO forecast!")
-        else:
-            if (self.currentForecastLevel>0) & (abs(self.signalDetected)>0):
-                maxSignal = np.max(abs(np.array(predictionGenerator.predictionsDataFrame.signal)))
-                if abs(self.signalDetected) > maxSignal:
+        if len(predictionGenerator.predictionsDataFrame) > 0:
+            maxSignal = np.max(abs(np.array(predictionGenerator.predictionsDataFrame.signal)))
+            if abs(self.signalDetected) > maxSignal:
+                print(f"Current ATTMO forecast: {self.currentForecastLevel} New ATTMO forecast: {self.signalDetected}")
+                self.currentForecastLevel = self.signalDetected
+            elif abs(self.signalDetected) == maxSignal:
+                idxMaxPosSignal = np.where(predictionGenerator.predictionsDataFrame.signal == maxSignal)
+                idxMaxNegSignal = np.where(predictionGenerator.predictionsDataFrame.signal == -maxSignal)
+                if (self.signalDetected>0) & (len(idxMaxPosSignal[0])>len(idxMaxNegSignal[0])):
+                    print(f"Current ATTMO forecast: {self.currentForecastLevel} New ATTMO forecast: {self.signalDetected}")
                     self.currentForecastLevel = self.signalDetected
-                    print("New ATTMO forecast!")
-                elif abs(self.signalDetected) == maxSignal:
-                    idxMaxPosSignal = np.where(self.overShootDataframe.midprice == maxSignal)
-                    idxMaxNegSignal = np.where(self.overShootDataframe.midprice == -maxSignal)
-                    if (self.signalDetected>0) & (len(idxMaxPosSignal[0])>len(idxMaxNegSignal[0])):
-                        self.currentForecastLevel = self.signalDetected
-                        print("New ATTMO forecast!")
-                    elif (self.signalDetected<0) & (len(idxMaxPosSignal[0])<len(idxMaxNegSignal[0])):
-                        self.currentForecastLevel = self.signalDetected
-                        print("New ATTMO forecast!")
-        self.trendStrength = self.startingValuesTrendStrength[self.currentForecastLevel + 3]
-        self.trendStrength += dcosEventsSignalDetector.totOscillatorBonus
-        if self.trendStrength > 100:
-            self.trendStrength = 100
-        elif self.trendStrength < 1:
-            self.trendStrength = 1
-        self.trendForecast = self.trendForecastLabels[int(np.floor(self.trendStrength/10))]
-        self.attmoForecast = self.attmoForecastLabels[self.currentForecastLevel + 3]
+                    #print(f"New ATTMO forecast: {self.currentForecastLevel}")
+                elif (self.signalDetected<0) & (len(idxMaxPosSignal[0])<len(idxMaxNegSignal[0])):
+                    print(f"Current ATTMO forecast: {self.currentForecastLevel} New ATTMO forecast: {self.signalDetected}")
+                    self.currentForecastLevel = self.signalDetected
+                    #print(f"New ATTMO forecast: {self.currentForecastLevel}")
+            self.trendStrength = self.startingValuesTrendStrength[self.currentForecastLevel + 3]
+            self.trendStrength += dcosEventsSignalDetector.totOscillatorBonus
+            if self.trendStrength > 100:
+                self.trendStrength = 100
+            elif self.trendStrength < 1:
+                self.trendStrength = 1
+            self.trendForecast = self.trendForecastLabels[int(np.floor(self.trendStrength/10))]
+            self.attmoForecast = self.attmoForecastLabels[self.currentForecastLevel + 3]
 
         if config.saveSignalDetectionData:
             self.saveSignalDetection(tickReader, dcosEventsSignalDetector, events, iterationBlock, block, trendLines)
@@ -270,8 +286,7 @@ class trendLineSignal:
     __slots__ = ['overShootDataframe', 'overshootsDirection', 'trendLineDataFrame', 'X', 'y', # 'estimationIteration', 'estimationTimestamp',
         'estimationPoints', 'intercept', 'slope', 'rSquared',
         'iterationFirstSample', 'timestampFirstSample', 'midpriceFirstSample',
-        'iterationLastSample', 'timestampLastSample', 'midpriceLastSample',
-        'updateModelWithNewOS',
+        'iterationLastSample', 'timestampLastSample', 'midpriceLastSample',        #'updateModelWithNewOS',
         'plotData', 'outputDirImgs', 'signal']
     def __init__(self, overshootsDirection, config_plotData, foldernameImagesSignalDetector):
         self.overShootDataframe = pd.DataFrame(columns = ['iteration', 'timestamp', 'midprice', 'direction'])
@@ -292,7 +307,7 @@ class trendLineSignal:
         self.iterationLastSample = 0
         self.timestampLastSample = ''
         self.midpriceLastSample = 0
-        self.updateModelWithNewOS = 0
+        #self.updateModelWithNewOS = 0
         self.plotData = config_plotData
         self.outputDirImgs = foldernameImagesSignalDetector
     def updateAndFitToNewData(self, tickReader, osEvent):
@@ -304,35 +319,20 @@ class trendLineSignal:
             if 'index' in self.overShootDataframe.columns:
                 self.overShootDataframe.drop('index', inplace=True, axis=1)
             if len(self.trendLineDataFrame) > 0:
-                #tmp_df = self.trendLineDataFrame.copy()
-                #tmp_df.reset_index(inplace=True)
-                #if 'index' in self.overShootDataframe.columns:
-                #    tmp_df.drop('index', inplace=True, axis=1)
-                #tmp_df.loc[len(tmp_df)] = self.overShootDataframe.iloc[len(self.overShootDataframe)-1]
-                #setToFit_df = tmp_df.copy()
-                #setToFit_df.set_index('iteration', inplace=True)
-                #if 'index' in setToFit_df.columns:
-                #    setToFit_df.drop('index', inplace=True, axis=1)
-                #setToFit = setToFit_df.midprice
                 lX = list(self.X) + [tickReader.iteration]
                 X = np.array(lX).reshape(-1, 1)
                 ly = list(self.y) + [tickReader.midprice]
                 y = np.array(ly).reshape(-1, 1)
-                #X = setToFit.index.values.reshape(-1, 1)
-                #y = setToFit.values.reshape(-1, 1)
-                #model = LinearRegression()
-                #model.fit(X, y)
-                #y_pred = model.predict(X)
                 y_pred = []
                 [y_pred.append(self.slope*x+self.intercept) for x in X]
                 r_squared = compute_r_squared(y, y_pred)
                 print("")
                 if self.overshootsDirection < 0:
-                    print(f"{tickReader.timestamp}: Fitted new observation to support line") #. New R-squared: {np.round(r_squared,3)}, new intercept = {np.round(model.intercept_[0],3)}, new slope = {np.round(model.coef_[0],3)}")
+                    print(f"{tickReader.timestamp}: updateAndFitToNewData: Fitted new observation to support line") #. New R-squared: {np.round(r_squared,3)}, new intercept = {np.round(model.intercept_[0],3)}, new slope = {np.round(model.coef_[0],3)}")
                 else:
-                    print(f"{tickReader.timestamp}: Fitted new observation to resistance line")
+                    print(f"{tickReader.timestamp}: updateAndFitToNewData: Fitted new observation to resistance line")
                 print(f"self.rSquared - r_squared = {self.rSquared - r_squared}")
-                print(f"Last point y = {y[-1]} vs predicted y = {y_pred[-1]}")
+                #print(f"Last point y = {y[-1]} vs predicted y = {y_pred[-1]}")
                 if (self.rSquared - r_squared) > 0.1:
                     if y_pred[-1] > y[-1]:
                         if self.estimationPoints < 4:
@@ -344,29 +344,37 @@ class trendLineSignal:
                             self.signal = 2
                         else:
                             self.signal = 3
-                    print(f"Trend line signal = {self.signal}")
+                    #print(f"updateAndFitToNewData Trend line signal = {self.signal}")
                     if self.plotData:
                         self.plotConfirmationOrBrakeout(X, y, y_pred)
                     self = self.reset()
-                else:
-                    self.updateModelWithNewOS = 1
+                #else:
+                #    print("refitting...")
+                    #self.updateModelWithNewOS = 1
         return self
-    def detectTrendLine(self, tickReader):
+    def detectTrendLine(self): #, tickReader
+        #print(f"detectTrendLine Trend line signal 1 = {self.signal}")
         df = self.overShootDataframe.copy()
+        #print("")
+        #print(f"{tickReader.timestamp}: self.overshootsDirection = {self.overshootsDirection}, detectTrendLine: len(df) = {len(df)}, self.updateModelWithNewOS = {self.updateModelWithNewOS}, self.estimationPoints = {self.estimationPoints}")
         if len(df) == 10:
             if self.overshootsDirection < 0:
                 df = df[df.direction<0]
             elif self.overshootsDirection > 0:
                 df = df[df.direction>0]
             if len(df) > 2:
-                if self.updateModelWithNewOS:
-                    if self.estimationPoints > 2:
-                        k = self.estimationPoints+1
-                        self = self.fitLineToSetConfirmation(df, k)
-                    self.updateModelWithNewOS = 0
-                else:
-                    for k in range(3,len(df)):
-                        self = self.fitLineToNewSet(df, k)
+                #if self.updateModelWithNewOS:
+                #    if self.estimationPoints > 2:
+                #        k = self.estimationPoints+1
+                #        self = self.fitLineToSetConfirmation(df, k)
+                #    self.updateModelWithNewOS = 0
+                #else:
+                for k in range(3,len(df)):
+                    self = self.fitLineToNewSet(df, k)
+        #else:
+        #    print(f"len(df) = {len(df)}")
+        #print(f"detectTrendLine Trend line signal 2 = {self.signal}")
+        #print(f"{tickReader.timestamp}: self.overshootsDirection = {self.overshootsDirection}, detectTrendLine: len(df) = {len(df)}, self.updateModelWithNewOS = {self.updateModelWithNewOS}, self.estimationPoints = {self.estimationPoints}")
         return self
     def fitLineToSetConfirmation(self, df, k):
         setToFit_df = df.iloc[len(df)-k:len(df)]
@@ -389,6 +397,7 @@ class trendLineSignal:
         self.estimationPoints = k
         if self.plotData:
             self.plotNewTrendLine(X, y, y_pred)
+        #print(f"{tickReader.timestamp}: fitLineToSetConfirmation")
         return self
     def fitLineToNewSet(self, df, k):
         setToFit_df = df.iloc[len(df)-k:len(df)]
@@ -421,6 +430,7 @@ class trendLineSignal:
             self.midpriceLastSample = setToFit_df.midprice.iloc[len(setToFit_df)-1]
             if self.plotData:
                 self.plotNewTrendLine(X, y, y_pred)
+        #print(f"fitLineToNewSet")
         return self
     def plotNewTrendLine(self, X, y, y_pred):
         if self.overshootsDirection < 0:
@@ -457,7 +467,7 @@ class trendLineSignal:
         plt.savefig(f"{self.outputDirImgs}{prefix}_line_deviation_{self.timestampFirstSample}.pdf") # estimationTimestamp
         plt.show()
     def reset(self):
-        self.overShootDataframe = pd.DataFrame(columns = ['iteration', 'timestamp', 'midprice', 'direction'])
+        #self.overShootDataframe = pd.DataFrame(columns = ['iteration', 'timestamp', 'midprice', 'direction'])
         self.X = []
         self.y = []
         self.trendLineDataFrame = pd.DataFrame(columns = ['iteration', 'timestamp', 'midprice', 'direction'])
@@ -493,29 +503,21 @@ class predictionGenerator:
     def generatePrediction(self, signal, threshold, predictionFactor, tickReader):
         if abs(signal) > 0:
             self.predictionsDataFrame.loc[len(self.predictionsDataFrame)] = [0, '', 0, 0, 0, 0, 0, 0, 0, '', 0, 0, 0, 0, 0]
-            #self.predictionsDataFrame.iterationPredictionStart.loc[len(self.predictionsDataFrame)] = tickReader.iteration
             self.predictionsDataFrame.loc[len(self.predictionsDataFrame)-1, 'iterationPredictionStart'] = tickReader.iteration
-            #self.predictionsDataFrame.timestampPredictionStart.loc[len(self.predictionsDataFrame)] = tickReader.timestamp
             self.predictionsDataFrame.loc[len(self.predictionsDataFrame)-1, 'timestampPredictionStart'] = tickReader.timestamp
-            #self.predictionsDataFrame.midpricePredictionStart.loc[len(self.predictionsDataFrame)] = tickReader.midprice
             self.predictionsDataFrame.loc[len(self.predictionsDataFrame)-1, 'midpricePredictionStart'] = tickReader.midprice
-            #self.predictionsDataFrame.predictionPriceChangePt.loc[len(self.predictionsDataFrame)] = threshold * predictionFactor * 100
             self.predictionsDataFrame.loc[len(self.predictionsDataFrame)-1, 'predictionPriceChangePt'] = threshold * predictionFactor * 100
             if signal < 0:
                 predictionDirection = -1
             elif signal > 0:
                 predictionDirection = 1
-            #self.predictionsDataFrame.predictionDirection.loc[len(self.predictionsDataFrame)] = predictionDirection
             self.predictionsDataFrame.loc[len(self.predictionsDataFrame)-1, 'predictionDirection'] = predictionDirection
-            #self.predictionsDataFrame.signal.loc[len(self.predictionsDataFrame)] = signal
             self.predictionsDataFrame.loc[len(self.predictionsDataFrame)-1, 'signal'] = signal
             target = tickReader.midprice+(tickReader.midprice*threshold*predictionFactor*predictionDirection)
-            #self.predictionsDataFrame.target.loc[len(self.predictionsDataFrame)] = target
             self.predictionsDataFrame.loc[len(self.predictionsDataFrame)-1, 'target'] = target
             stopLoss = tickReader.midprice-(tickReader.midprice*threshold*predictionFactor*predictionDirection)
-            #self.predictionsDataFrame.stopLoss.loc[len(self.predictionsDataFrame)] = stopLoss
             self.predictionsDataFrame.loc[len(self.predictionsDataFrame)-1, 'stopLoss'] = stopLoss
-            if self.verbose:
+            if (abs(signal)>1) & (self.verbose):
                 print("")
                 print(f"---------------------------------------------------------")
                 print(f"Time timeHorizon: {self.timeHorizon}, {tickReader.timestamp}: New signal = {signal}. Prediction generated!")
@@ -525,34 +527,22 @@ class predictionGenerator:
         for i in range(len(self.predictionsDataFrame)):
             if self.predictionsDataFrame.predictionDirection.loc[i] > 0:
                 if tickReader.midprice>self.predictionsDataFrame.target.loc[i]:
-                    #self.predictionsDataFrame.predictionOutcome.loc[i] = 1
-                    #self.predictionsDataFrame.nTargetReached.loc[i] += 1
                     self.predictionsDataFrame.loc[i, 'predictionOutcome'] = 1
                     self.nrTargetReached += 1
                 elif tickReader.midprice<self.predictionsDataFrame.stopLoss.loc[i]:
-                    #self.predictionsDataFrame.predictionOutcome.loc[i] = -1
-                    #self.predictionsDataFrame.self.nStopLossReached.loc[i] += 1
                     self.predictionsDataFrame.loc[i, 'predictionOutcome'] = -1
                     self.nrStopLossReached += 1
             elif self.predictionsDataFrame.predictionDirection.loc[i] < 0:
                 if tickReader.midprice<self.predictionsDataFrame.target.loc[i]:
-                    #self.predictionsDataFrame.predictionOutcome.loc[i] = 1
-                    #self.predictionsDataFrame.self.nTargetReached.loc[i] += 1
                     self.predictionsDataFrame.loc[i, 'predictionOutcome'] = 1
                     self.nrTargetReached += 1
                 elif tickReader.midprice>self.predictionsDataFrame.stopLoss.loc[i]:
-                    #self.predictionsDataFrame.predictionOutcome.loc[i] = -1
-                    #self.predictionsDataFrame.self.nStopLossReached.loc[i] += 1
                     self.predictionsDataFrame.loc[i, 'predictionOutcome'] = -1
                     self.nrStopLossReached += 1
             if abs(self.predictionsDataFrame.predictionOutcome.loc[i]) > 0:
                 self.indicesPredictionsRealised.append(i)
                 self.predictionsDataFrame.loc[i, 'nrTargetReached'] = self.nrTargetReached
                 self.predictionsDataFrame.loc[i, 'nrStopLossReached'] = self.nrStopLossReached
-                #self.predictionsDataFrame.iterationPredictionEnd.loc[i] = tickReader.iteration
-                #self.predictionsDataFrame.timestampPredictionEnd.loc[i] = tickReader.timestamp
-                #self.predictionsDataFrame.midpricePredictionEnd.loc[i] = tickReader.midprice
-                #self.predictionsDataFrame.predictionDurationTicks.loc[i] = tickReader.iteration - self.predictionsDataFrame.iterationPredictionStart.loc[i]
                 self.predictionsDataFrame.loc[i, 'iterationPredictionEnd'] = tickReader.iteration
                 self.predictionsDataFrame.loc[i, 'timestampPredictionEnd'] = tickReader.timestamp
                 self.predictionsDataFrame.loc[i, 'midpricePredictionEnd'] = tickReader.midprice

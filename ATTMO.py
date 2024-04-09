@@ -101,12 +101,10 @@ def on_close(ws, status, message):
 
 ####### main loop #######
 def on_message(ws, message):
-    global closePrice, midprice, price_1, df
-    global client, config, assetString
-    global tickReader, interpolators, signalDetectors, predictionGenerators
-    global dcosInterpolation, dcosSignalDetection
-    #global foldername, foldernameTicks,columnNamesTickReader
-    #global columnNamesInterpolator, columnNamesSignalDetector, columnNamesPredictions, columnNamesPredictions
+    # global closePrice, midprice, price_1, df, client, assetString
+    global config, tickReader, interpolators, dcosInterpolation
+    global signalDetectors, dcosSignalDetection, eventsSignalDetector
+    global crossSignals, trendLineSignals, predictionGenerators
 
 
     ####### 1. Read tick & update counters #######
@@ -117,21 +115,12 @@ def on_message(ws, message):
 
 
     for t in range(len(config.timeHorizons)):
-        #foldernameTimeHorizon = foldername+config.timeHorizons[t]+"/"
-        #foldernameInterpolation = foldernameTimeHorizon+"interpolation/"
-        #foldernameSignalDetector = foldernameTimeHorizon+"signal_detector/"
-        #foldernamePredictionsGenerated = foldernameTimeHorizon+"predictions_generated/"
-        #foldernamePredictionsOutcome = foldernameTimeHorizon+"predictions_outcome/"
-
-
         ####### 2. run interpolation #######
         interpolators[t] = interpolators[t].run(dcosInterpolation[t], closePrice)
-        #print(f"Tick {interpolators[t].iterationBlock}/{interpolators[t].blockLength}. Midprice = {tickReader.midprice}. Interpolated thresholds = {interpolators[t].interpolatedThresholds}")
 
 
         ####### 3. run signal detection #######
         signalDetectors[t] = signalDetectors[t].update(config, tickReader, dcosSignalDetection[t], eventsSignalDetector[t], predictionGenerators[t], crossSignals[t], trendLineSignals[t], closePrice, interpolators[t].iterationBlock, interpolators[t].block)
-        #print(f"Signal updated")
 
 
         ####### 4. compute volatility #######
