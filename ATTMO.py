@@ -101,7 +101,7 @@ def on_close(ws, status, message):
 
 ####### main loop #######
 def on_message(ws, message):
-    # global closePrice, midprice, price_1, df, client, assetString
+    global closePrice #, midprice, price_1, df, client, assetString
     global config, tickReader, interpolators, dcosInterpolation
     global signalDetectors, dcosSignalDetection, eventsSignalDetector
     global crossSignals, trendLineSignals, predictionGenerators
@@ -115,9 +115,10 @@ def on_message(ws, message):
 
 
     for t in range(len(config.timeHorizons)):
+
         ####### 2. run interpolation #######
         interpolators[t] = interpolators[t].run(dcosInterpolation[t], closePrice)
-
+        #print(f"iteration block {interpolators[t].iterationBlock} / {config.blockLengths[t]}")
 
         ####### 3. run signal detection #######
         signalDetectors[t] = signalDetectors[t].update(config, tickReader, dcosSignalDetection[t], eventsSignalDetector[t], predictionGenerators[t], crossSignals[t], trendLineSignals[t], closePrice, interpolators[t].iterationBlock, interpolators[t].block)
@@ -126,8 +127,7 @@ def on_message(ws, message):
         ####### 4. compute volatility #######
         if interpolators[t].iterationBlock == interpolators[t].blockLength:
             interpolators[t] = interpolators[t].interpolate(tickReader)
-            signalDetectors[t], dcosSignalDetection[t] = signalDetectors[t].reset(dcosSignalDetection[t], closePrice, interpolators[t].interpolatedThresholds)
-
+            eventsSignalDetector[t] = eventsSignalDetector[t].reset(dcosSignalDetection[t], closePrice, interpolators[t].interpolatedThresholds)
 
 
 ####### Run Program #######

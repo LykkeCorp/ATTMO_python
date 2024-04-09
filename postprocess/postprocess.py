@@ -47,7 +47,7 @@ def find_last_non_zero_indices(lst):
 
 
 
-def runPostprocess(date, chunk_size):
+def runPostprocess(date):
     foldername = f"C:/Users/thoma/Documents/BTCFDUSD_data/BTCFDUSD_{date}/"
 
     results_DF = pd.DataFrame(columns = ['timeHorizon', 'forecast_duration_X', 'forecast_duration_SD', 'pred_duration_X', 'pred_duration_SD',
@@ -55,6 +55,7 @@ def runPostprocess(date, chunk_size):
                                         'overall_accuracy', 'pred_accuracy_lvl_1', 'pred_accuracy_lvl_2', 'pred_accuracy_lvl_3'])
 
     for t in range(len(config.timeHorizons)):
+        chunk_size = config.blockLengths*10
 
         foldername_time_horizon = foldername+config.timeHorizons[t]+"/"
         #foldername_interpolation = foldername_time_horizon+"interpolation/"
