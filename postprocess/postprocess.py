@@ -55,7 +55,7 @@ def runPostprocess(date):
                                         'overall_accuracy', 'pred_accuracy_lvl_1', 'pred_accuracy_lvl_2', 'pred_accuracy_lvl_3'])
 
     for t in range(len(config.timeHorizons)):
-        chunk_size = config.blockLengths*10
+        chunk_size = config.blockLengths[t]*10
 
         foldername_time_horizon = foldername+config.timeHorizons[t]+"/"
         #foldername_interpolation = foldername_time_horizon+"interpolation/"
@@ -64,10 +64,10 @@ def runPostprocess(date):
 
         file_path = foldername_time_horizon + f"DF_signals_{config.timeHorizons[t]}.csv"
         if os.path.exists(file_path):
-            print("Signal detector file exists. Loading...")
+            print(f"Time horizon = {config.timeHorizons[t]}. Signal detector file exists. Loading...")
             DF = pd.read_csv(foldername_time_horizon + f"DF_signals_{config.timeHorizons[t]}.csv")
         else:
-            print("Creating signal detector file...")
+            print(f"Time horizon = {config.timeHorizons[t]}. Creating signal detector file...")
             event_files = glob.glob(f"{foldername_signal_detector}*.parquet")
             for i in range(len(event_files)):
                 if i == 0:
@@ -123,10 +123,10 @@ def runPostprocess(date):
 
         file_path = foldername_time_horizon + f"DF_predictions_{config.timeHorizons[t]}.csv"
         if os.path.exists(file_path):
-            print("Predictions file exists. Loading...")
+            print(f"Time horizon = {config.timeHorizons[t]}. Predictions file exists. Loading...")
             DF_pred = pd.read_csv(foldername_time_horizon + f"DF_predictions_{config.timeHorizons[t]}.csv")
         else:
-            print("Creating predictions file...")
+            print(f"Time horizon = {config.timeHorizons[t]}. Creating predictions file...")
             event_files = glob.glob(f"{foldername_predictions}*.parquet")
             for i in range(len(event_files)):
                 if i == 0:
@@ -143,14 +143,18 @@ def runPostprocess(date):
 
 
         ### signal level trace
-        IE_pred_correct_lvl_1 = IE_pred_correct.loc[IE_pred_correct.signal == 1]
-        IE_pred_incorrect_lvl_1 = IE_pred_incorrect.loc[IE_pred_incorrect.signal == -1]
+        IE_pred_lvl_1 = DF_pred.loc[abs(DF_pred.signal) == 1]
+        IE_pred_lvl_2 = DF_pred.loc[abs(DF_pred.signal) == 2]
+        IE_pred_lvl_3 = DF_pred.loc[abs(DF_pred.signal) == 3]
 
-        IE_pred_correct_lvl_2 = IE_pred_correct.loc[IE_pred_correct.signal == 2]
-        IE_pred_incorrect_lvl_2 = IE_pred_incorrect.loc[IE_pred_incorrect.signal == -2]
 
-        IE_pred_correct_lvl_3 = IE_pred_correct.loc[IE_pred_correct.signal == 3]
-        IE_pred_incorrect_lvl_3 = IE_pred_incorrect.loc[IE_pred_incorrect.signal == -3]
+        ### accuracy * level trace
+        IE_pred_correct_lvl_1 = IE_pred_lvl_1.loc[IE_pred_lvl_1.predictionOutcome == 1]
+        IE_pred_incorrect_lvl_1 = IE_pred_lvl_1.loc[IE_pred_lvl_1.predictionOutcome == -1]
+        IE_pred_correct_lvl_2 = IE_pred_lvl_2.loc[IE_pred_lvl_2.predictionOutcome == 1]
+        IE_pred_incorrect_lvl_2 = IE_pred_lvl_2.loc[IE_pred_lvl_2.predictionOutcome == -1]
+        IE_pred_correct_lvl_3 = IE_pred_lvl_3.loc[IE_pred_lvl_3.predictionOutcome == 1]
+        IE_pred_incorrect_lvl_3 = IE_pred_lvl_3.loc[IE_pred_lvl_3.predictionOutcome == -1]
 
 
         ### descriptives
@@ -187,7 +191,7 @@ def runPostprocess(date):
         print(f"{config.timeHorizons[t]}:")
         print(f"Mean forecast duration = {np.round(forecast_duration_X/60)} min. (SD = {np.round(forecast_duration_SD/60)}).")
         print(f"Mean prediction duration = {np.round(pred_duration_X/60)} min. (SD = {np.round(pred_duration_SD/60)}).")
-        print(f"Tot predictions generated = {overall_n_pred}: {n_lvl_1_pred} lvl. 1, {n_lvl_2_pred} lvl. 2, and {n_lvl_3_pred} lvl. 3.")
+        print(f"Tot predictions generated = {overall_n_pred}: {n_lvl_1_pred} (lvl. 1), {n_lvl_2_pred} (lvl. 2), and {n_lvl_3_pred} (lvl. 3).")
         print(f"Overall accuracy = {overall_accuracy} %.")
         print(f"Accuracy lvl. 1 = {pred_accuracy_lvl_1} %.")
         print(f"Accuracy lvl. 2 = {pred_accuracy_lvl_2} %.")
@@ -201,7 +205,7 @@ def runPostprocess(date):
 
 
         if chunk_size > 0:
-            num_chunks = len(DF) // chunk_size + (1 if len(DF) % chunk_size != 0 else 0)  # Calculate the number of chunks
+            num_chunks = int(len(DF) // chunk_size + (1 if len(DF) % chunk_size != 0 else 0))
 
             for chunk_index in range(num_chunks):
                 start_index = chunk_index * chunk_size
@@ -572,7 +576,6 @@ def runPostprocess(date):
                     )
 
 
-
                 x_ticks = chunk_df['iteration'][::600]  # Extract ticks every 600 iterations
                 x_ticklabels = chunk_df['timestamp'][::600]  # Extract labels every 600 iterations
 
@@ -584,11 +587,13 @@ def runPostprocess(date):
                     showlegend=True
                 )
 
+                img_filename = f"timeHorizon_{config.timeHorizons[t]}_attmoForecastChunk_{chunk_index_str}_Of_{num_chunks_str}"
+                filename = foldername_time_horizon + img_filename + ".html"
 
                 chunk_index_str = "{:03d}".format(chunk_index+1)
                 num_chunks_str = "{:03d}".format(num_chunks)
-                plotly.offline.plot(fig, filename=f"attmo_forecast_chunk_{chunk_index_str}_of_{num_chunks_str}.html",
-                                    image='png', image_filename=f"attmo_forecast_chunk_{chunk_index_str}_of_{num_chunks_str}",
+                plotly.offline.plot(fig, filename=filename,
+                                    image='png', image_filename=img_filename,
                                     output_type='file',
                                     validate=False)
 
