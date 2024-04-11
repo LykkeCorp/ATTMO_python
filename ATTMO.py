@@ -80,7 +80,7 @@ for t in range(len(config.timeHorizons)):
 
     ####### initialise signal detectors #######
     signalDetectors[t] = attmoSignalDetector(config, t, columnNamesSignalDetector, foldernameSignalDetector, foldernameImagesSignalDetector)
-    eventsSignalDetector[t] = intrinsicTimeEventsSignalDetector(config.timeHorizons[t], config.thresholdsForInterpolation[t+9:t+12])
+    eventsSignalDetector[t] = intrinsicTimeEventsSignalDetector(config.timeHorizons[t], config.thresholdsForInterpolation[t+20:t+23])
     dcosSignalDetection[t] = [[] for _ in range(3)]
     for j in range(3):
         dcosSignalDetection[t][j] = DcOS_TrendGenerator.DcOS(config.thresholdsForInterpolation[t+9+j], -1) #interpolators[t].interpolatedThresholds[j]

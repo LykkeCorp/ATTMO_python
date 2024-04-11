@@ -20,7 +20,7 @@ class attmoSignalDetector:
         'plotData', 'outputDirImgs']
     def __init__(self, config, t, columnNamesSignalDetector, foldernameSignalDetector, foldernameImagesSignalDetector):
         self.timeHorizon = config.timeHorizons[t]
-        self.thresholdsForSignalDetector = config.thresholdsForInterpolation[t+9:t+12]
+        self.thresholdsForSignalDetector = config.thresholdsForInterpolation[t+20:t+23]
         self.signalDetected = 0
         self.currentForecastLevel = 0
         self.trendStrength = 50
@@ -54,97 +54,88 @@ class attmoSignalDetector:
                     dcosTraceGenerator[j].DC.time = dcosEventsSignalDetector.tlastDC_tmp[j]
                     dcosTraceGenerator[j].reference.level = dcosEventsSignalDetector.ref_tmp[j]
                     dcosTraceGenerator[j].nOS = dcosEventsSignalDetector[t].nos_tmp[j]
-        #print(f"dcosTraceGenerator thresholds = {dcosTraceGenerator[0].threshold}, {dcosTraceGenerator[1].threshold}, {dcosTraceGenerator[2].threshold}")
-        #print(f"dcosEventsSignalDetector thresholds = {dcosEventsSignalDetector.thresholdsForSignalDetector[0]}, {dcosEventsSignalDetector.thresholdsForSignalDetector[1]}, {dcosEventsSignalDetector.thresholdsForSignalDetector[2]}")
 
         events = list(np.zeros(3))
         for j in range(3):
             events[j] = dcosTraceGenerator[j].run(closePrice)
         dcosEventsSignalDetector = dcosEventsSignalDetector.update(dcosTraceGenerator, events, closePrice)
 
-        if len(predictionGenerator.predictionsDataFrame) == 0:
-            self.currentForecastLevel = 0
-            maxSignalPre = 0
-        else:
-            maxSignalPre = np.max(abs(np.array(predictionGenerator.predictionsDataFrame.signal)))
-            predictionGenerator = predictionGenerator.checkOngoingPredictions(tickReader)
-            maxSignal = np.max(abs(np.array(predictionGenerator.predictionsDataFrame.signal)))
-            if maxSignal < maxSignalPre:
-                idxMaxSignalPos = np.where(predictionGenerator.predictionsDataFrame.signal == maxSignal)
-                idxMaxSignalNeg = np.where(predictionGenerator.predictionsDataFrame.signal == -maxSignal)
-                idx = list(np.sort(list(idxMaxSignalPos[0]) + list(idxMaxSignalNeg[0])))
-                self.currentForecastLevel = predictionGenerator.predictionsDataFrame.signal.iloc[idx[len(idx)-1]]
-                print("")
-                print(f"---------------------------------------------------------")
-                print(f"Time timeHorizon: {self.timeHorizon}, {tickReader.timestamp}: Attmo forecast update due to expiration of max. lvl. pred.: {self.currentForecastLevel}")
-
-
-        #if (abs(events[0])>0):
-        #    crossSignal = crossSignal.generateSignal(dcosEventsSignalDetector)
-        #    self.signalDetected = crossSignal.signal
-
-        if abs(events[2]) == 2:
-            for i in range(2):
-                trendLines[i] = trendLines[i].updateAndFitToNewData(tickReader, events[2])
-
-            if (trendLines[0].signal==2) | (trendLines[1].signal==2):
-                self.signalDetected = 2
-            elif (trendLines[0].signal==-2) | (trendLines[1].signal==-2):
-                self.signalDetected = -2
-            elif (trendLines[0].signal==1) | (trendLines[1].signal==1):
-                self.signalDetected = 1
-            elif (trendLines[0].signal==-1) | (trendLines[1].signal==-1):
-                self.signalDetected = -1
-
-            if (abs(trendLines[0].signal)>0) & (trendLines[1].estimationPoints>0):
-                if trendLines[0].signal > 0:
-                    self.signalDetected = 3
-                else:
-                    self.signalDetected = -3
-            elif ((abs(trendLines[1].signal)>0 & trendLines[0].estimationPoints>0)):
-                if trendLines[1].signal > 0:
-                    self.signalDetected = 3
-                else:
-                    self.signalDetected = -3
-
-
-            if events[2] == -2:
-                trendLines[0] = trendLines[0].detectTrendLine()
-            elif events[2] == 2:
-                trendLines[1] = trendLines[1].detectTrendLine()
-
-            predictionGenerator = predictionGenerator.generatePrediction(self.signalDetected, dcosTraceGenerator[1].threshold, config.predictionFactor, tickReader)
-
-            if len(predictionGenerator.predictionsDataFrame) > 0:
+        if block > 0:
+            if len(predictionGenerator.predictionsDataFrame) == 0:
+                self.currentForecastLevel = 0
+                maxSignalPre = 0
+            else:
+                maxSignalPre = np.max(abs(np.array(predictionGenerator.predictionsDataFrame.signal)))
+                predictionGenerator = predictionGenerator.checkOngoingPredictions(tickReader)
                 maxSignal = np.max(abs(np.array(predictionGenerator.predictionsDataFrame.signal)))
-                if abs(self.signalDetected) > maxSignal:
+                if maxSignal < maxSignalPre:
+                    idxMaxSignalPos = np.where(predictionGenerator.predictionsDataFrame.signal == maxSignal)
+                    idxMaxSignalNeg = np.where(predictionGenerator.predictionsDataFrame.signal == -maxSignal)
+                    idx = list(np.sort(list(idxMaxSignalPos[0]) + list(idxMaxSignalNeg[0])))
+                    self.currentForecastLevel = predictionGenerator.predictionsDataFrame.signal.iloc[idx[len(idx)-1]]
                     print("")
                     print(f"---------------------------------------------------------")
-                    print(f"Time timeHorizon: {self.timeHorizon}, {tickReader.timestamp}: Current ATTMO forecast: {self.currentForecastLevel} New ATTMO forecast: {self.signalDetected}")
-                    self.currentForecastLevel = self.signalDetected
-                elif abs(self.signalDetected) == maxSignal:
-                    idxMaxPosSignal = np.where(predictionGenerator.predictionsDataFrame.signal == maxSignal)
-                    idxMaxNegSignal = np.where(predictionGenerator.predictionsDataFrame.signal == -maxSignal)
-                    if (self.signalDetected>0) & (len(idxMaxPosSignal[0])>len(idxMaxNegSignal[0])):
+                    print(f"Time timeHorizon: {self.timeHorizon}, {tickReader.timestamp}: Attmo forecast update due to expiration of max. lvl. pred.: {self.currentForecastLevel}")
+
+            if abs(events[2]) == 2:
+                for i in range(2):
+                    trendLines[i] = trendLines[i].updateAndFitToNewData(tickReader, events[2])
+
+                if (trendLines[0].signal==2) | (trendLines[1].signal==2):
+                    self.signalDetected = 2
+                elif (trendLines[0].signal==-2) | (trendLines[1].signal==-2):
+                    self.signalDetected = -2
+                elif (trendLines[0].signal==1) | (trendLines[1].signal==1):
+                    self.signalDetected = 1
+                elif (trendLines[0].signal==-1) | (trendLines[1].signal==-1):
+                    self.signalDetected = -1
+
+                if (abs(trendLines[0].signal)>0) & (trendLines[1].estimationPoints>0):
+                    if trendLines[0].signal > 0:
+                        self.signalDetected = 3
+                    else:
+                        self.signalDetected = -3
+                elif ((abs(trendLines[1].signal)>0 & trendLines[0].estimationPoints>0)):
+                    if trendLines[1].signal > 0:
+                        self.signalDetected = 3
+                    else:
+                        self.signalDetected = -3
+
+                if events[2] == -2:
+                    trendLines[0] = trendLines[0].detectTrendLine()
+                elif events[2] == 2:
+                    trendLines[1] = trendLines[1].detectTrendLine()
+
+                predictionGenerator = predictionGenerator.generatePrediction(self.signalDetected, dcosTraceGenerator[1].threshold, config.predictionFactor, tickReader)
+
+                if len(predictionGenerator.predictionsDataFrame) > 0:
+                    maxSignal = np.max(abs(np.array(predictionGenerator.predictionsDataFrame.signal)))
+                    if abs(self.signalDetected) > maxSignal:
                         print("")
                         print(f"---------------------------------------------------------")
                         print(f"Time timeHorizon: {self.timeHorizon}, {tickReader.timestamp}: Current ATTMO forecast: {self.currentForecastLevel} New ATTMO forecast: {self.signalDetected}")
                         self.currentForecastLevel = self.signalDetected
-                        #print(f"New ATTMO forecast: {self.currentForecastLevel}")
-                    elif (self.signalDetected<0) & (len(idxMaxPosSignal[0])<len(idxMaxNegSignal[0])):
-                        print("")
-                        print(f"---------------------------------------------------------")
-                        print(f"Time timeHorizon: {self.timeHorizon}, {tickReader.timestamp}: Current ATTMO forecast: {self.currentForecastLevel} New ATTMO forecast: {self.signalDetected}")
-                        self.currentForecastLevel = self.signalDetected
-                        #print(f"New ATTMO forecast: {self.currentForecastLevel}")
-                self.trendStrength = self.startingValuesTrendStrength[self.currentForecastLevel + 3]
-                self.trendStrength += dcosEventsSignalDetector.totOscillatorBonus
-                if self.trendStrength > 100:
-                    self.trendStrength = 100
-                elif self.trendStrength < 1:
-                    self.trendStrength = 1
-                self.trendForecast = self.trendForecastLabels[int(np.floor(self.trendStrength/10))]
-                self.attmoForecast = self.attmoForecastLabels[self.currentForecastLevel + 3]
+                    elif abs(self.signalDetected) == maxSignal:
+                        idxMaxPosSignal = np.where(predictionGenerator.predictionsDataFrame.signal == maxSignal)
+                        idxMaxNegSignal = np.where(predictionGenerator.predictionsDataFrame.signal == -maxSignal)
+                        if (self.signalDetected>0) & (len(idxMaxPosSignal[0])>len(idxMaxNegSignal[0])):
+                            print("")
+                            print(f"---------------------------------------------------------")
+                            print(f"Time timeHorizon: {self.timeHorizon}, {tickReader.timestamp}: Current ATTMO forecast: {self.currentForecastLevel} New ATTMO forecast: {self.signalDetected}")
+                            self.currentForecastLevel = self.signalDetected
+                        elif (self.signalDetected<0) & (len(idxMaxPosSignal[0])<len(idxMaxNegSignal[0])):
+                            print("")
+                            print(f"---------------------------------------------------------")
+                            print(f"Time timeHorizon: {self.timeHorizon}, {tickReader.timestamp}: Current ATTMO forecast: {self.currentForecastLevel} New ATTMO forecast: {self.signalDetected}")
+                            self.currentForecastLevel = self.signalDetected
+                    self.trendStrength = self.startingValuesTrendStrength[self.currentForecastLevel + 3]
+                    self.trendStrength += dcosEventsSignalDetector.totOscillatorBonus
+                    if self.trendStrength > 100:
+                        self.trendStrength = 100
+                    elif self.trendStrength < 1:
+                        self.trendStrength = 1
+                    self.trendForecast = self.trendForecastLabels[int(np.floor(self.trendStrength/10))]
+                    self.attmoForecast = self.attmoForecastLabels[self.currentForecastLevel + 3]
 
         if config.saveSignalDetectionData:
             self.saveSignalDetection(tickReader, dcosEventsSignalDetector, events, iterationBlock, block, trendLines)
@@ -156,7 +147,6 @@ class attmoSignalDetector:
         df_signalDetector_core = [item for t in signalDetector_core for item in t]
         df_signalDetector = pd.DataFrame(columns=self.colNamesDf)
         df_signalDetector.loc[0] = [tickReader.iteration, tickReader.timestamp, tickReader.midprice, iterationBlock, block] + df_signalDetector_core + [self.signalDetected, self.currentForecastLevel, self.trendStrength, self.trendForecast, self.attmoForecast, trendLines[0].intercept, trendLines[0].slope, trendLines[0].rSquared, trendLines[0].estimationPoints, trendLines[0].iterationFirstSample, trendLines[0].timestampFirstSample, trendLines[0].midpriceFirstSample, trendLines[0].iterationLastSample, trendLines[0].timestampLastSample, trendLines[0].midpriceLastSample, trendLines[1].intercept, trendLines[1].slope, trendLines[1].rSquared, trendLines[1].estimationPoints, trendLines[1].iterationFirstSample, trendLines[1].timestampFirstSample, trendLines[1].midpriceFirstSample, trendLines[1].iterationLastSample, trendLines[1].timestampLastSample, trendLines[1].midpriceLastSample]
-        # trendLines[0].estimationIteration, trendLines[1].estimationIteration,
         df_signalDetector.to_parquet(f"{self.outputDir}{tickReader.timestamp}_signalDetector.parquet")
 
 
