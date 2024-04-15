@@ -39,7 +39,7 @@ def find_last_non_zero_indices(lst):
     return non_zero_indices
 
 
-def runPostprocess(folderpath, symbol_1, symbol_2, date, plotSplitted, plotSingleTrace):
+def runPostprocess(folderpath, symbol_1, symbol_2, date, plotSplitted, plotSingleTrace, xTickSpacing):
     foldername = f"{folderpath}{symbol_1}{symbol_2}_{date}/"
 
     # load saved cfg file
@@ -61,7 +61,7 @@ def runPostprocess(folderpath, symbol_1, symbol_2, date, plotSplitted, plotSingl
         chunk_size = blockLengths[t]*10
 
         foldername_time_horizon = foldername+timeHorizons[t]+"/"
-        #foldername_interpolation = foldername_time_horizon+"interpolation/"
+        foldername_interpolation = foldername_time_horizon+"interpolation/"
         foldername_signal_detector = foldername_time_horizon+"signal_detector/"
         foldername_predictions = foldername_time_horizon+"predictions/"
 
@@ -94,6 +94,25 @@ def runPostprocess(folderpath, symbol_1, symbol_2, date, plotSplitted, plotSingl
 
         ie_forecast = ie_signal.copy()
         ie_forecast = ie_forecast.iloc[indices]
+
+
+
+        ### load interpolation files
+        file_path = foldername_time_horizon + f"DF_interpolation_{timeHorizons[t]}.csv"
+        if os.path.exists(file_path):
+            print(f"Time horizon = {timeHorizons[t]}. Interpolation file exists. Loading...")
+            DF_interp = pd.read_csv(foldername_time_horizon + f"DF_interpolation_{timeHorizons[t]}.csv")
+        else:
+            print(f"Time horizon = {timeHorizons[t]}. Creating interpolation file...")
+            event_files = glob.glob(f"{foldername_interpolation}*.parquet")
+            for i in range(len(event_files)):
+                if i == 0:
+                    DF_interp = pd.read_parquet(event_files[i])
+                elif i > 0:
+                    df_interp = pd.read_parquet(event_files[i])
+                    DF_interp = pd.concat([DF_interp, df_interp])
+            DF_interp.to_csv(foldername_time_horizon + f"DF_interpolation_{timeHorizons[t]}.csv")
+
 
 
         ### load prediction files
@@ -167,6 +186,7 @@ def runPostprocess(folderpath, symbol_1, symbol_2, date, plotSplitted, plotSingl
         print("")
         print(f"{timeHorizons[t]}:")
         print(f"Mean forecast duration = {np.round(forecast_duration_X/60)} min. (SD = {np.round(forecast_duration_SD/60)}).")
+        print(f"Number of blocks = {len(DF_interp)}.")
         print(f"Mean prediction duration = {np.round(pred_duration_X/60)} min. (SD = {np.round(pred_duration_SD/60)}).")
         print(f"Tot predictions generated = {overall_n_pred}: {n_lvl_1_pred} (lvl. 1), {n_lvl_2_pred} (lvl. 2), and {n_lvl_3_pred} (lvl. 3).")
         print(f"Overall accuracy = {overall_accuracy} %.")
@@ -180,15 +200,15 @@ def runPostprocess(folderpath, symbol_1, symbol_2, date, plotSplitted, plotSingl
                             overall_accuracy, pred_accuracy_lvl_1, pred_accuracy_lvl_2, pred_accuracy_lvl_3]
 
         if plotSplitted:
-            plotSplittedTrace(DF, DF_pred, chunk_size, timeHorizons[t], foldername_time_horizon)
+            plotSplittedTrace(DF, DF_pred, DF_interp, chunk_size, timeHorizons[t], foldername_time_horizon, xTickSpacing)
         if plotSingleTrace:
-            plotInOneImage(DF, DF_pred, timeHorizons[t], foldername_time_horizon)
+            plotInOneImage(DF, DF_pred, DF_interp, timeHorizons[t], foldername_time_horizon, xTickSpacing)
 
     results_DF.to_csv(foldername + f"descriptives.csv")
     return results_DF
 
 
-def plotSplittedTrace(DF, DF_pred, chunk_size, timeHorizon, foldername_time_horizon):
+def plotSplittedTrace(DF, DF_pred, DF_interp, chunk_size, timeHorizon, foldername_time_horizon, xTickSpacing):
     num_chunks = int(len(DF) // chunk_size + (1 if len(DF) % chunk_size != 0 else 0))
 
     for chunk_index in range(num_chunks):
@@ -559,9 +579,23 @@ def plotSplittedTrace(DF, DF_pred, chunk_size, timeHorizon, foldername_time_hori
                     )
             )
 
+        ### prediction traces
+        idx = list(np.where((DF_interp.iteration>start_index) & (DF_interp.iteration<end_index))[0])
 
-        x_ticks = chunk_df['iteration'][::600]  # Extract ticks every 600 iterations
-        x_ticklabels = chunk_df['timestamp'][::600]  # Extract labels every 600 iterations
+        if len(idx) > 0:
+            chunk_df_interp = DF_interp.iloc[idx[0]:idx[len(idx)-1]]
+
+        for b in range(len(chunk_df_interp)):
+            fig.add_shape(type="line",
+                          x0=DF_interp.iteration.iloc[b],
+                          y0=np.max(DF.midprice),
+                          x1=DF_interp.iteration.iloc[b],
+                          y1=np.min(DF.midprice),
+                          line=dict(color="gray", width=0.5, dash="dash"))
+
+
+        x_ticks = chunk_df['iteration'][::xTickSpacing]
+        x_ticklabels = chunk_df['timestamp'][::xTickSpacing]
 
         fig.update_layout(
             xaxis=dict(tickvals=x_ticks, ticktext=x_ticklabels),
@@ -582,7 +616,7 @@ def plotSplittedTrace(DF, DF_pred, chunk_size, timeHorizon, foldername_time_hori
                             validate=False)
 
 
-def plotInOneImage(DF, DF_pred, timeHorizon, foldername_time_horizon):
+def plotInOneImage(DF, DF_pred, DF_interp, timeHorizon, foldername_time_horizon, xTickSpacing):
     ### dcos traces
     ie_A = DF[abs(DF.currentEvent0) > 0]
     ie_A_dc = DF[abs(DF.currentEvent0) == 1]
@@ -829,7 +863,7 @@ def plotInOneImage(DF, DF_pred, timeHorizon, foldername_time_horizon):
             fillcol = '#F0F8FF'
         elif ie_forecast.currentForecastLevel.iloc[i] == 1:
             fillcol = '#FFFF66'
-        elif ie_forecast.currentForecastLevel.iloc[i] == 1:
+        elif ie_forecast.currentForecastLevel.iloc[i] == 2:
             fillcol = '#FFD700'
         elif ie_forecast.currentForecastLevel.iloc[i] == 3:
             fillcol = '#FFA500'
@@ -948,8 +982,18 @@ def plotInOneImage(DF, DF_pred, timeHorizon, foldername_time_horizon):
         )
 
 
-    x_ticks = DF['iteration'][::600]  # Extract ticks every 600 iterations
-    x_ticklabels = DF['timestamp'][::600]  # Extract labels every 600 iterations
+    for b in range(len(DF_interp)):
+        fig.add_shape(type="line",
+                      x0=DF_interp.iteration.iloc[b],
+                      y0=np.max(DF.midprice),
+                      x1=DF_interp.iteration.iloc[b],
+                      y1=np.min(DF.midprice),
+                      line=dict(color="gray", width=0.5, dash="dash"))
+
+
+    x_ticks = DF['iteration'][::xTickSpacing]
+    x_ticklabels = DF['timestamp'][::xTickSpacing]
+
 
     fig.update_layout(
         xaxis=dict(tickvals=x_ticks, ticktext=x_ticklabels),
