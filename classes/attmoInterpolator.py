@@ -27,7 +27,7 @@ class attmoInterpolator:
         self.iterationBlock = 0
         self.block = 0
         self.nrOfEventsInBlock = list(np.zeros(len(self.thresholdsForInterpolation)))
-        self.currentEventsInterpolator = list(np.zeros(len(self.thresholdsForInterpolation))) #[[] for _ in range(len(self.thresholdsForInterpolation))]
+        self.currentEventsInterpolator = list(np.zeros(len(self.thresholdsForInterpolation)))
         self.interpolatedThresholds = self.thresholdsForInterpolation[timeHorizonIndex+9:timeHorizonIndex+12]
         self.alphaParameter = 0
         self.betaParameter = 0
@@ -57,42 +57,49 @@ class attmoInterpolator:
         else:
             idx_y_end = idx_y_start+i+1
         y_data = eventFrequency[idx_y_start:idx_y_end]
-        x_data = np.array(self.thresholdsForInterpolation[idx_y_start:idx_y_end])
-        powerLawParameters, _ = curve_fit(power_law, x_data, y_data)
-        self.alphaParameter, self.betaParameter = powerLawParameters
-        y_pred = list(power_law(np.array(x_data), powerLawParameters[0], powerLawParameters[1]))
-        self.rSquared = r2_score(y_data, y_pred)
-        y_values_to_find = np.array(self.desiredEventFrequencies)
-        self.interpolatedThresholds = [inverse_power_law(y, powerLawParameters[0], powerLawParameters[1]) for y in y_values_to_find]
-        if self.rSquared <= 0.92:
-            self.windLevel = 3
-        elif 0.96 <= self.rSquared < 0.92:
-            self.windLevel = 2
+        if len(y_data) > 2:
+            x_data = np.array(self.thresholdsForInterpolation[idx_y_start:idx_y_end])
+            powerLawParameters, _ = curve_fit(power_law, x_data, y_data)
+            self.alphaParameter, self.betaParameter = powerLawParameters
+            y_pred = power_law(np.array(x_data), powerLawParameters[0], powerLawParameters[1])
+            self.rSquared = r2_score(y_data, y_pred)
+            self.interpolatedThresholds = [inverse_power_law(y, powerLawParameters[0], powerLawParameters[1]) for y in np.array(self.desiredEventFrequencies)]
+            y_wind = .4-.045*self.betaParameter+.0025*self.rSquared
+            if y_wind < .1:
+                self.windLevel = 0
+            elif .1 <= y_wind < .15:
+                self.windLevel = 1
+            else:
+                self.windLevel = 2
+            self.windLabel = self.windLabels[self.windLevel]
+            if self.verbose:
+                print("")
+                print("---------------------------------------------------------")
+                print(f"Time timeHorizon: {self.timeHorizon}, {tickReader.timestamp}: resetting deltas.")
+                print(f"Exponential function parameters: a = {np.round(self.alphaParameter,2)}, b = {np.round(self.betaParameter,2)}. R^2 = {np.round(self.rSquared,2)}.")
+                print(f"Desired event frequencies = {np.array(self.desiredEventFrequencies)*100}%; signalDetector thresholds = {np.round(np.array(self.interpolatedThresholds)*100,3)}% price change.")
+            if self.plotData:
+                plt.scatter(x_data*100, y_data*100, color='k', label='Data')
+                plt.plot(x_data*100, y_pred*100, 'c-', label='Predicted')
+                plt.scatter(np.array(self.interpolatedThresholds)*100, np.array(self.desiredEventFrequencies)*100, marker="x", color='k', label='Interpolated DcOS thresholds')
+                plt.xlabel('DcOS Threshold (% price change)')
+                plt.ylabel('Events frequency (% of samples)')
+                plt.title(f"Model: y = {np.round(self.alphaParameter,6)} * x^{np.round(self.betaParameter,3)}, R-squared = {np.round(self.rSquared,3)}")
+                plt.legend()
+                plt.grid(True)
+                plt.savefig(f"{self.outputDirImgs}interpolation_block_{self.block:05}.pdf")
+                plt.show()
         else:
-            self.windLevel = 1
-        self.windLabel = self.windLabels[self.windLevel]
-        if self.verbose:
-            print("")
-            print("---------------------------------------------------------")
-            print(f"Time timeHorizon: {self.timeHorizon}, {tickReader.timestamp}: resetting deltas.")
-            print(f"Exponential function parameters: a = {np.round(self.alphaParameter,2)}, b = {np.round(self.betaParameter,2)}. R^2 = {np.round(self.rSquared,2)}.")
-            print(f"Desired event frequencies = {y_values_to_find}%; signalDetector thresholds = {np.round(np.array(self.interpolatedThresholds)*100,3)}% price change.")
-            print(f"Wind conditions = {self.windLabel}")
+            if self.verbose:
+                print("")
+                print("---------------------------------------------------------")
+                print(f"Time timeHorizon: {self.timeHorizon}, {tickReader.timestamp}: could not reset deltas. Too few data points to interpolate.")
+                print(f"SignalDetector thresholds = {np.round(np.array(self.interpolatedThresholds)*100,3)}% price change.")
+        print(f"Wind conditions = {self.windLabel}")
         if self.saveData:
             df_interp = pd.DataFrame(columns=self.colNamesDf)
             df_interp.loc[0] = [tickReader.iteration, tickReader.timestamp, tickReader.midprice, self.iterationBlock, self.block, self.interpolatedThresholds[0], self.interpolatedThresholds[1], self.interpolatedThresholds[2], self.alphaParameter, self.betaParameter, self.rSquared, self.windLevel, self.windLabel]
             df_interp.to_parquet(f"{self.outputDir}{tickReader.timestamp}_interpolation.parquet")
-        if self.plotData:
-            plt.scatter(x_data, y_data, color='k', label='Data')
-            plt.plot(x_data, y_pred, 'c-', label='Predicted')
-            plt.scatter(np.array(self.interpolatedThresholds), y_values_to_find, marker="x", color='k', label='Interpolated DcOS thresholds')
-            plt.xlabel('DcOS Threshold')
-            plt.ylabel('Events frequency')
-            plt.title(f"Model: y = {np.round(self.alphaParameter,6)} * x^{np.round(self.betaParameter,3)}, R-squared = {np.round(self.rSquared,3)}")
-            plt.legend()
-            plt.grid(True)
-            plt.savefig(f"{self.outputDirImgs}interpolation_block_{self.block:05}.pdf")
-            plt.show()
         self.iterationBlock = 0
         self.block += 1
         self.nrOfEventsInBlock = list(np.zeros(len(self.thresholdsForInterpolation)))
