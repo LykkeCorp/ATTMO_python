@@ -12,14 +12,15 @@ timeHorizons = ['shortterm', '1h', '4h', '1d', '3d', '1w']
 # interpolation settings
 thresholdsForInterpolation = list(np.logspace(-5, 0, 50)) # from .00001 to 1 (i.e., from .001 to 100% price change)
 desiredEventFrequenciesList = [[.05, .025, .01],
-                               [.0005, .0001, .00005],
-                               [.0001, .00005, .00001],
-                               [.00001, .000005, .000002],
-                               [.000002, .000001, .0000005],
-                               [.000001, .0000005, .0000002]]
+                               [.025, .01, .005],
+                               [.01, .005, .001],
+                               [.005, .001, .0005],
+                               [.001, .0005, .0001],
+                               [.00005, .0001, .00005]]
 desiredNumberOfLargestEventsPerBlock = 1
 blockLengths = []
-blockLengthFactors = [3, .3, .25, .25, .1, .075]
+#blockLengthFactors = [6, 3, 1.5, 1, .75, .5]
+blockLengthFactors = [5, 5, 5, 5, 5, 5]
 for i in range(len(desiredEventFrequenciesList)):
     blockLengths.append(np.round(desiredNumberOfLargestEventsPerBlock / desiredEventFrequenciesList[i][2] * blockLengthFactors[i]))
 
