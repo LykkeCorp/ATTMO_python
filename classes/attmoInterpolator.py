@@ -65,9 +65,9 @@ class attmoInterpolator:
             self.rSquared = r2_score(y_data, y_pred)
             self.interpolatedThresholds = [inverse_power_law(y, powerLawParameters[0], powerLawParameters[1]) for y in np.array(self.desiredEventFrequencies)]
             y_wind = .2 - .2*(self.betaParameter-1)**2 + .15*(1-self.rSquared)*10
-            if y_wind < .1:
+            if y_wind < .12:
                 self.windLevel = 0
-            elif .1 <= y_wind < .2:
+            elif .12 <= y_wind < .2:
                 self.windLevel = 1
             else:
                 self.windLevel = 2

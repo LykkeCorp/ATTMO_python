@@ -86,10 +86,10 @@ def runPostprocess(folderpath, symbol_1, symbol_2, date, plotSplitted, plotSingl
         ie_signal_3 = DF[abs(DF.signalDetected) == 3]
 
         ### ATTMO forecast
-        a = ie_signal.currentForecastLevel.values
         indices = []
+        indices.append(0)
         for i in range(1, len(ie_signal)):
-            if a[i] != a[i - 1]:
+            if ie_signal.currentForecastLevel.values[i] != ie_signal.currentForecastLevel.values[indices[len(indices)-1]]:
                 indices.append(i)
 
         ie_forecast = ie_signal.copy()
@@ -428,10 +428,10 @@ def plotSplittedTrace(DF, DF_pred, DF_interp, chunk_size, timeHorizon, foldernam
         ie_signal_2 = chunk_df[abs(chunk_df.signalDetected) == 2]
         ie_signal_3 = chunk_df[abs(chunk_df.signalDetected) == 3]
 
-        a = ie_signal.currentForecastLevel.values
         indices = []
+        indices.append(0)
         for i in range(1, len(ie_signal)):
-            if a[i] != a[i - 1]:
+            if ie_signal.currentForecastLevel.values[i] != ie_signal.currentForecastLevel.values[indices[len(indices)-1]]:
                 indices.append(i)
 
         ie_forecast = ie_signal.copy()
@@ -634,10 +634,10 @@ def plotInOneImage(DF, DF_pred, DF_interp, timeHorizon, foldername_time_horizon,
     ie_signal_3 = DF[abs(DF.signalDetected) == 3]
 
     ### ATTMO forecast
-    a = ie_signal.currentForecastLevel.values
     indices = []
+    indices.append(0)
     for i in range(1, len(ie_signal)):
-        if a[i] != a[i - 1]:
+        if ie_signal.currentForecastLevel.values[i] != ie_signal.currentForecastLevel.values[indices[len(indices)-1]]:
             indices.append(i)
 
     ie_forecast = ie_signal.copy()
@@ -842,16 +842,16 @@ def plotInOneImage(DF, DF_pred, DF_interp, timeHorizon, foldername_time_horizon,
         fig.add_trace(trace_res_line)
 
 
-    a = ie_signal.currentForecastLevel.values
     indices = []
+    indices.append(0)
     for i in range(1, len(ie_signal)):
-        if a[i] != a[i - 1]:
+        if ie_signal.currentForecastLevel.values[i] != ie_signal.currentForecastLevel.values[indices[len(indices)-1]]:
             indices.append(i)
 
     ie_forecast = ie_signal.copy()
     ie_forecast = ie_forecast.iloc[indices]
 
-    for i in range(len(ie_forecast)-1):
+    for i in range(len(ie_forecast)):
         #if ie_signal.signalDetected.iloc[i] == -3:
         if ie_forecast.currentForecastLevel.iloc[i] == -3:
             fillcol = '#87CEFA'
@@ -868,9 +868,14 @@ def plotInOneImage(DF, DF_pred, DF_interp, timeHorizon, foldername_time_horizon,
         elif ie_forecast.currentForecastLevel.iloc[i] == 3:
             fillcol = '#FFA500'
 
-        fig.add_vrect(x0=ie_forecast.iteration.iloc[i], x1=ie_forecast.iteration.iloc[i+1],
-                      annotation_text=str(ie_forecast.attmoForecast.iloc[i]), annotation_position="top left",
-                      fillcolor=fillcol, opacity=0.25, line_width=0)
+        if i < len(ie_forecast)-1:
+            fig.add_vrect(x0=ie_forecast.iteration.iloc[i], x1=ie_forecast.iteration.iloc[i+1],
+                          annotation_text=str(ie_forecast.attmoForecast.iloc[i]), annotation_position="top left",
+                          fillcolor=fillcol, opacity=0.25, line_width=0)
+        else:
+            fig.add_vrect(x0=ie_forecast.iteration.iloc[i], x1=DF.iteration.iloc[len(DF)-1],
+                          annotation_text=str(ie_forecast.attmoForecast.iloc[i]), annotation_position="top left",
+                          fillcolor=fillcol, opacity=0.25, line_width=0)
 
 
     ### accuracy trace

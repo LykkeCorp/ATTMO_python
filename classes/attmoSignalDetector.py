@@ -76,24 +76,6 @@ class attmoSignalDetector:
         if block > 0:
             if len(predictionGenerator.predictionsDataFrame) > 0:
                 predictionGenerator = predictionGenerator.checkOngoingPredictions(tickReader)
-                #print("trendLineSignals[t][0].overShootDataframe:")
-                #print(trendLines[0].overShootDataframe)
-
-            #if len(predictionGenerator.predictionsDataFrame) == 0:
-            #    self.currentForecastLevel = 0
-            #    maxSignalPre = 0
-            #else:
-            #    maxSignalPre = np.max(abs(np.array(predictionGenerator.predictionsDataFrame.signal)))
-            #    predictionGenerator = predictionGenerator.checkOngoingPredictions(tickReader)
-            #    maxSignal = np.max(abs(np.array(predictionGenerator.predictionsDataFrame.signal)))
-            #    if maxSignal < maxSignalPre:
-            #        idxMaxSignalPos = np.where(predictionGenerator.predictionsDataFrame.signal == maxSignal)
-            #        idxMaxSignalNeg = np.where(predictionGenerator.predictionsDataFrame.signal == -maxSignal)
-            #        idx = list(np.sort(list(idxMaxSignalPos[0]) + list(idxMaxSignalNeg[0])))
-            #        self.currentForecastLevel = predictionGenerator.predictionsDataFrame.signal.iloc[idx[len(idx)-1]]
-            #        print("")
-            #        print(f"---------------------------------------------------------")
-            #        print(f"Time timeHorizon: {self.timeHorizon}, {tickReader.timestamp}: Attmo forecast update due to expiration of max. lvl. pred.: {self.currentForecastLevel}")
 
             if abs(events[2]) > 0:
                 self = self.updateEventDF(tickReader, events[2])
@@ -133,7 +115,6 @@ class attmoSignalDetector:
                     predictionGenerator = predictionGenerator.generatePrediction(self.signalDetected, dcosTraceGenerator[2].threshold, config.predictionFactor, tickReader)
 
                     if len(predictionGenerator.predictionsDataFrame) > 0:
-                        #maxSignal = np.max(abs(np.array(predictionGenerator.predictionsDataFrame.signal)))
                         if abs(self.signalDetected) > maxSignalPre:
                             print("")
                             print(f"---------------------------------------------------------")
