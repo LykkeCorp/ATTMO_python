@@ -38,13 +38,14 @@ class attmoSignalDetector:
         self.outputDir = foldernameSignalDetector
 
     def updateEventDF(self, tickReader, osEvent):
-        self.eventDataframe = pd.DataFrame(columns = ['iteration', 'timestamp', 'midprice', 'event'])
         self.eventDataframe.loc[len(self.eventDataframe)] = [tickReader.iteration, tickReader.timestamp, tickReader.midprice, osEvent]
         if len(self.eventDataframe) == 11:
             self.eventDataframe = self.eventDataframe.drop([0])
             self.eventDataframe.reset_index(inplace=True)
             if 'index' in self.eventDataframe.columns:
                 self.eventDataframe.drop('index', inplace=True, axis=1)
+        #print("Event added. eventDataframe:")
+        #print(self.eventDataframe)
         return self
 
     def update(self, config, tickReader, dcosTraceGenerator, dcosEventsSignalDetector, predictionGenerator, crossSignal, trendLines, closePrice, iterationBlock, block):
@@ -75,6 +76,8 @@ class attmoSignalDetector:
         if block > 0:
             if len(predictionGenerator.predictionsDataFrame) > 0:
                 predictionGenerator = predictionGenerator.checkOngoingPredictions(tickReader)
+                #print("trendLineSignals[t][0].overShootDataframe:")
+                #print(trendLines[0].overShootDataframe)
 
             #if len(predictionGenerator.predictionsDataFrame) == 0:
             #    self.currentForecastLevel = 0
@@ -127,7 +130,7 @@ class attmoSignalDetector:
                         maxSignalPre = 0
                     else:
                         maxSignalPre = np.max(abs(np.array(predictionGenerator.predictionsDataFrame.signal)))
-                    predictionGenerator = predictionGenerator.generatePrediction(self.signalDetected, dcosTraceGenerator[1].threshold, config.predictionFactor, tickReader)
+                    predictionGenerator = predictionGenerator.generatePrediction(self.signalDetected, dcosTraceGenerator[2].threshold, config.predictionFactor, tickReader)
 
                     if len(predictionGenerator.predictionsDataFrame) > 0:
                         #maxSignal = np.max(abs(np.array(predictionGenerator.predictionsDataFrame.signal)))
